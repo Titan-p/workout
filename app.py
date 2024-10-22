@@ -126,6 +126,4 @@ def initialize_app():
     if os.path.exists(FILE_PATH):
         load_excel_data()
 
-if __name__ == "__main__":
-    initialize_app()
-    app.run(host="0.0.0.0", port=8088)
+initialize_app()

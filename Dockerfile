@@ -27,4 +27,4 @@ COPY templates .
 EXPOSE 8088
 
 # 运行应用
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8088", "app:app"]
