@@ -24,7 +24,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 
 # 复制应用程序文件
 COPY app.py .
-COPY templates .
+COPY templates ./templates
 
 # 暴露端口
 EXPOSE 8088
