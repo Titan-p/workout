@@ -1,18 +1,29 @@
-# Dockerfile
+# 构建阶段
+FROM python:3.12-slim-bullseye AS builder
 
-FROM python:3.12
-
-# Set the working directory
+# 设置工作目录
 WORKDIR /app
 
-# Copy the current directory contents into the container
-COPY . /app
+# 只复制必要的文件
+COPY requirements.txt .
 
-# Install the required packages using the Tsinghua mirror
-RUN pip install -i https://pypi.tuna.tsinghua.edu.cn/simple flask pandas openpyxl
+# 安装依赖并清理缓存
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 
-# Expose the port the app runs on
+# 运行阶段
+FROM python:3.12-slim-bullseye
+
+# 设置工作目录
+WORKDIR /app
+
+# 从构建阶段复制安装好的依赖
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+
+# 复制应用程序文件
+COPY app.py .
+
+# 暴露端口
 EXPOSE 8088
 
-# Command to run the application
+# 运行应用
 CMD ["python", "app.py"]
