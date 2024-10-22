@@ -94,6 +94,8 @@ def upload_file():
 
 @app.route("/", methods=["GET"])
 def index():
+    if not os.path.exists(FILE_PATH):
+        return redirect(url_for('upload_file'))
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
     formatted_date_str = datetime.strptime(date_str, "%Y-%m-%d").strftime("%-m.%-d")
 
@@ -110,6 +112,8 @@ def index():
 
 @app.route("/week", methods=["GET"])
 def week_view():
+    if not os.path.exists(FILE_PATH):
+        return redirect(url_for('upload_file'))
     week_dates = get_current_week_dates()
     week_plan = {date.strftime("%Y-%m-%d"): get_plan_for_date(date.strftime("%-m.%-d")) for date in week_dates}
     return render_template_string(
@@ -124,4 +128,4 @@ def initialize_app():
 
 if __name__ == "__main__":
     initialize_app()
-    app.run(host="0.0.0.0", port=5005)
+    app.run(host="0.0.0.0", port=8088)
