@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>本周训练计划</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #333;
+        }
+
+        .week-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .day-card {
+            flex: 1 1 calc(33.33% - 20px);
+            min-width: 250px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: box-shadow 0.3s;
+        }
+
+        .day-card:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .custom-table th,
+        .custom-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+
+        .custom-table th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>本周训练计划</h1>
+        <div class="week-container">
+            {% for date, (sheet_name, remarks, plan) in week_plan.items() %}
+            {% if sheet_name %}
+            <div class="day-card">
+                <h2>{{ date }} ({{ ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][loop.index0] }})</h2>
+                <p>{{ sheet_name }}</p>
+                <h3>备注</h3>
+                {% if remarks %}
+                <ul>
+                    {% for remark in remarks %}
+                    <li>{{ remark }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>暂无备注</p>
+                {% endif %}
+                <h3>计划内容</h3>
+                {% if plan is not none and not plan.empty %}
+                {{ plan.fillna("").to_html(index=False, classes="custom-table") | safe }}
+                {% else %}
+                <p>没有计划内容</p>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <button onclick="window.location.href='/'" class="button">返回日视图</button>
+    </div>
+</body>
+
+</html>
