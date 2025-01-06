@@ -2,14 +2,21 @@ from flask import Flask, render_template_string, request, redirect, url_for
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+from supabase import create_client
+from dotenv import load_dotenv
+import io
+
+load_dotenv()
 
 app = Flask(__name__)
 
+# Supabase configurations
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
+BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "workout-files")
+
 # Configurations
-FILE_PATH = "./workout.xlsx"
-UPLOAD_FOLDER = "./"
+FILE_NAME = "workout.xlsx"
 ALLOWED_EXTENSIONS = {"xlsx"}
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # Global variables for caching Excel data
 excel_data = None
@@ -19,20 +26,26 @@ phase_sheets = None
 # Utility Functions
 def load_excel_data():
     global excel_data, phase_sheets
-    excel_data = pd.ExcelFile(FILE_PATH)
-    phase_sheets = {}
-    for name in excel_data.sheet_names:
-        if "阶段" in name:
-            try:
-                # 提取阶段号
-                phase_num = int("".join(filter(str.isdigit, name)))
-                if phase_num >= 13:
-                    phase_sheets[name] = pd.read_excel(
-                        FILE_PATH, sheet_name=name, header=None
-                    )
-            except ValueError:
-                # 如果无法提取阶段号，跳过该工作表
-                continue
+    try:
+        # 从 Supabase 获取文件
+        response = supabase.storage.from_(BUCKET_NAME).download(FILE_NAME)
+        excel_data = pd.ExcelFile(io.BytesIO(response))
+
+        phase_sheets = {}
+        for name in excel_data.sheet_names:
+            if "阶段" in name:
+                try:
+                    phase_num = int("".join(filter(str.isdigit, name)))
+                    if phase_num >= 13:
+                        phase_sheets[name] = pd.read_excel(
+                            io.BytesIO(response), sheet_name=name, header=None
+                        )
+                except ValueError:
+                    continue
+    except Exception as e:
+        print(f"Error loading excel data: {e}")
+        return False
+    return True
 
 
 def allowed_file(filename):
@@ -113,16 +126,26 @@ def upload_file():
         if not file or file.filename == "":
             return "没有选择文件"
         if file and allowed_file(file.filename):
-            file.save(os.path.join(app.config["UPLOAD_FOLDER"], "workout.xlsx"))
-            load_excel_data()
-            return redirect(url_for("index"))
+            try:
+                # 上传文件到 Supabase Storage
+                file_content = file.read()
+                supabase.storage.from_(BUCKET_NAME).upload(
+                    FILE_NAME, file_content, {"upsert": True}
+                )
+                if load_excel_data():
+                    return redirect(url_for("index"))
+                else:
+                    return "文件上传成功但加载失败，请检查文件格式"
+            except Exception as e:
+                return f"上传失败: {str(e)}"
     return render_template_string(open("templates/upload.html").read())
 
 
 @app.route("/", methods=["GET"])
 def index():
-    if not os.path.exists(FILE_PATH):
-        return redirect(url_for("upload_file"))
+    if not excel_data:
+        if not load_excel_data():
+            return redirect(url_for("upload_file"))
     date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
     formatted_date_str = datetime.strptime(date_str, "%Y-%m-%d").strftime("%-m.%-d")
 
@@ -148,7 +171,7 @@ def index():
 
 @app.route("/week", methods=["GET"])
 def week_view():
-    if not os.path.exists(FILE_PATH):
+    if not os.path.exists(FILE_NAME):
         return redirect(url_for("upload_file"))
     week_dates = get_current_week_dates()
     week_plan = {
@@ -162,8 +185,7 @@ def week_view():
 
 # Initialize the application
 def initialize_app():
-    if os.path.exists(FILE_PATH):
-        load_excel_data()
+    load_excel_data()
 
 
 initialize_app()
