@@ -11,7 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Supabase configurations
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY"))
+supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
 BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "workout-files")
 
 # Configurations
