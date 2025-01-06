@@ -1,60 +1,128 @@
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request, redirect, url_for, flash
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-from supabase import create_client
+from supabase import create_client, Client
 from dotenv import load_dotenv
 import io
+from functools import wraps
+from typing import Optional, Tuple, Dict, Any
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+# 配置验证
+required_env_vars = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+if missing_vars:
+    raise RuntimeError(
+        f"Missing required environment variables: {', '.join(missing_vars)}"
+    )
+
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 
-# Supabase configurations
-supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_SERVICE_ROLE_KEY"))
-BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "workout-files")
 
-# Configurations
-FILE_NAME = "workout.xlsx"
-ALLOWED_EXTENSIONS = {"xlsx"}
+# 配置
+class Config:
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "workout-files")
+    FILE_NAME = "workout.xlsx"
+    ALLOWED_EXTENSIONS = {"xlsx"}
+    CACHE_TIMEOUT = 3600  # 1小时缓存过期
 
-# Global variables for caching Excel data
-excel_data = None
-phase_sheets = None
+
+config = Config()
+
+# Supabase client
+try:
+    supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+except Exception as e:
+    logger.error(f"Failed to initialize Supabase client: {e}")
+    raise
+
+
+# 缓存类
+class ExcelCache:
+    def __init__(self):
+        self.excel_data = None
+        self.phase_sheets = {}
+        self.last_update = None
+
+    def is_expired(self) -> bool:
+        if not self.last_update:
+            return True
+        return (
+            datetime.now() - self.last_update
+        ).total_seconds() > Config.CACHE_TIMEOUT
+
+    def clear(self):
+        self.excel_data = None
+        self.phase_sheets = {}
+        self.last_update = None
+
+
+cache = ExcelCache()
+
+
+# 装饰器：确保数据已加载
+def require_excel_data(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not cache.excel_data or cache.is_expired():
+            success = load_excel_data()
+            if not success:
+                flash("无法加载训练数据，请重新上传文件", "error")
+                return redirect(url_for("upload_file"))
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 # Utility Functions
-def load_excel_data():
-    global excel_data, phase_sheets
+def load_excel_data() -> bool:
     try:
         # 从 Supabase 获取文件
-        response = supabase.storage.from_(BUCKET_NAME).download(FILE_NAME)
-        excel_data = pd.ExcelFile(io.BytesIO(response))
+        response = supabase.storage.from_(config.BUCKET_NAME).download(config.FILE_NAME)
+        cache.excel_data = pd.ExcelFile(io.BytesIO(response))
 
-        phase_sheets = {}
-        for name in excel_data.sheet_names:
+        cache.phase_sheets.clear()
+        for name in cache.excel_data.sheet_names:
             if "阶段" in name:
                 try:
                     phase_num = int("".join(filter(str.isdigit, name)))
                     if phase_num >= 13:
-                        phase_sheets[name] = pd.read_excel(
+                        cache.phase_sheets[name] = pd.read_excel(
                             io.BytesIO(response), sheet_name=name, header=None
                         )
                 except ValueError:
                     continue
+
+        cache.last_update = datetime.now()
+        return True
     except Exception as e:
-        print(f"Error loading excel data: {e}")
+        logger.error(f"Error loading excel data: {e}")
+        cache.clear()
         return False
-    return True
 
 
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename: str) -> bool:
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower() in config.ALLOWED_EXTENSIONS
+    )
 
 
-def get_plan_for_date(date_str):
+def get_plan_for_date(
+    date_str: str,
+) -> Tuple[Optional[str], Optional[list], Optional[pd.DataFrame]]:
     """Fetch the workout plan for a specific date."""
-    for sheet_name, df in phase_sheets.items():
+    for sheet_name, df in cache.phase_sheets.items():
         # Locate the date
         match = df.apply(
             lambda row: row.astype(str).str.contains(date_str, na=False), axis=1
@@ -96,96 +164,138 @@ def get_plan_for_date(date_str):
     return None, None, None
 
 
-def get_current_week_dates():
-    today = datetime.now().date()
-    monday = today - timedelta(days=today.weekday())
-    return [monday + timedelta(days=i) for i in range(7)]
-
-
-def get_week_plan(start_date):
-    """Get workout plans for a week starting from the given date."""
-    week_plan = {}
-    for i in range(7):
-        date = start_date + pd.Timedelta(days=i)
-        date_str = date.strftime("%-m.%-d")
-        sheet_name, remarks, plan = get_plan_for_date(date_str)
-        week_plan[date.strftime("%Y-%m-%d")] = {
-            "date": date_str,
-            "sheet_name": sheet_name,
-            "remarks": remarks,
-            "plan": plan,
-        }
-    return week_plan
-
-
 # Routes
 @app.route("/upload", methods=["GET", "POST"])
 def upload_file():
     if request.method == "POST":
         file = request.files.get("file")
         if not file or file.filename == "":
-            return "没有选择文件"
-        if file and allowed_file(file.filename):
-            try:
+            flash("没有选择文件", "error")
+            return redirect(request.url)
+
+        if not allowed_file(file.filename):
+            flash("不支持的文件类型", "error")
+            return redirect(request.url)
+
+        try:
+            # 创建临时目录（如果不存在）
+            temp_dir = "temp"
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir)
+
+            # 保存文件到临时目录
+            temp_path = os.path.join(temp_dir, config.FILE_NAME)
+            file.save(temp_path)
+
+            # 打开并读取文件
+            with open(temp_path, "rb") as f:
                 # 上传文件到 Supabase Storage
-                file_content = file.read()
-                supabase.storage.from_(BUCKET_NAME).upload(
-                    FILE_NAME, file_content, {"upsert": True}
+                response = supabase.storage.from_(config.BUCKET_NAME).update(
+                    path=config.FILE_NAME,
+                    file=f,
+                    file_options={
+                        "content-type": "application/octet-stream",
+                    },
                 )
-                if load_excel_data():
-                    return redirect(url_for("index"))
-                else:
-                    return "文件上传成功但加载失败，请检查文件格式"
-            except Exception as e:
-                return f"上传失败: {str(e)}"
+
+            # 删除临时文件
+            os.remove(temp_path)
+
+            cache.clear()  # 清除缓存
+            if load_excel_data():
+                flash("文件上传成功", "success")
+                return redirect(url_for("index"))
+            else:
+                flash("文件上传成功但加载失败，请检查文件格式", "error")
+                return redirect(request.url)
+
+        except Exception as e:
+            logger.error(f"Upload failed: {e}")
+            flash(f"上传失败: {str(e)}", "error")
+            return redirect(request.url)
+        finally:
+            # 确保临时文件被删除
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
+
     return render_template_string(open("templates/upload.html").read())
 
 
 @app.route("/", methods=["GET"])
+@require_excel_data
 def index():
-    if not excel_data:
-        if not load_excel_data():
-            return redirect(url_for("upload_file"))
-    date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
-    formatted_date_str = datetime.strptime(date_str, "%Y-%m-%d").strftime("%-m.%-d")
+    try:
+        date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
+        formatted_date_str = datetime.strptime(date_str, "%Y-%m-%d").strftime("%-m.%-d")
 
-    sheet_name, remarks, plan = get_plan_for_date(formatted_date_str)
+        sheet_name, remarks, plan = get_plan_for_date(formatted_date_str)
 
-    message = (
-        f"{formatted_date_str} 的训练计划（{sheet_name}）"
-        if plan is not None
-        else f"{formatted_date_str} 休息日，好好休息吧"
-    )
-    return render_template_string(
-        open("templates/index.html").read(),
-        message=message,
-        remarks=remarks,
-        plan_html=(
-            plan.fillna("").to_html(index=False, classes="custom-table")
+        message = (
+            f"{formatted_date_str} 的训练计划（{sheet_name}）"
             if plan is not None
-            else ""
-        ),
-        date_str=date_str,
-    )
+            else f"{formatted_date_str} 休息日，好好休息吧"
+        )
+
+        return render_template_string(
+            open("templates/index.html").read(),
+            message=message,
+            remarks=remarks,
+            plan_html=(
+                plan.fillna("").to_html(index=False, classes="custom-table")
+                if plan is not None
+                else ""
+            ),
+            date_str=date_str,
+        )
+    except Exception as e:
+        logger.error(f"Error in index route: {e}")
+        flash("获取训练计划时发生错误", "error")
+        return redirect(url_for("upload_file"))
 
 
 @app.route("/week", methods=["GET"])
+@require_excel_data
 def week_view():
-    if not os.path.exists(FILE_NAME):
-        return redirect(url_for("upload_file"))
-    week_dates = get_current_week_dates()
-    week_plan = {
-        date.strftime("%Y-%m-%d"): get_plan_for_date(date.strftime("%-m.%-d"))
-        for date in week_dates
-    }
-    return render_template_string(
-        open("templates/week.html").read(), week_plan=week_plan
-    )
+    try:
+        week_dates = get_current_week_dates()
+        week_plan = {
+            date.strftime("%Y-%m-%d"): get_plan_for_date(date.strftime("%-m.%-d"))
+            for date in week_dates
+        }
+        return render_template_string(
+            open("templates/week.html").read(), week_plan=week_plan
+        )
+    except Exception as e:
+        logger.error(f"Error in week view: {e}")
+        flash("获取周计划时发生错误", "error")
+        return redirect(url_for("index"))
+
+
+def get_current_week_dates():
+    today = datetime.now().date()
+    monday = today - timedelta(days=today.weekday())
+    return [monday + timedelta(days=i) for i in range(7)]
+
+
+# 错误处理
+@app.errorhandler(Exception)
+def handle_error(error):
+    logger.error(f"Unhandled error: {error}")
+    flash("发生未知错误", "error")
+    return redirect(url_for("index"))
 
 
 # Initialize the application
 def initialize_app():
-    load_excel_data()
+    try:
+        load_excel_data()
+    except Exception as e:
+        logger.error(f"Failed to initialize app: {e}")
 
 
-initialize_app()
+if __name__ == "__main__":
+    initialize_app()
+    app.run(debug=True)
