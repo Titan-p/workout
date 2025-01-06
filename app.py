@@ -178,28 +178,15 @@ def upload_file():
             return redirect(request.url)
 
         try:
-            # 创建临时目录（如果不存在）
-            temp_dir = "temp"
-            if not os.path.exists(temp_dir):
-                os.makedirs(temp_dir)
-
-            # 保存文件到临时目录
-            temp_path = os.path.join(temp_dir, config.FILE_NAME)
-            file.save(temp_path)
-
-            # 打开并读取文件
-            with open(temp_path, "rb") as f:
-                # 上传文件到 Supabase Storage
-                response = supabase.storage.from_(config.BUCKET_NAME).update(
-                    path=config.FILE_NAME,
-                    file=f,
-                    file_options={
-                        "content-type": "application/octet-stream",
-                    },
-                )
-
-            # 删除临时文件
-            os.remove(temp_path)
+            # 上传文件到 Supabase Storage
+            response = supabase.storage.from_(config.BUCKET_NAME).update(
+                path=config.FILE_NAME,
+                file=file.read(),
+                file_options={
+                    "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    # "upsert": True,
+                },
+            )
 
             cache.clear()  # 清除缓存
             if load_excel_data():
@@ -213,13 +200,6 @@ def upload_file():
             logger.error(f"Upload failed: {e}")
             flash(f"上传失败: {str(e)}", "error")
             return redirect(request.url)
-        finally:
-            # 确保临时文件被删除
-            if os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except:
-                    pass
 
     return render_template_string(open("templates/upload.html").read())
 
