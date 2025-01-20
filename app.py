@@ -31,187 +31,171 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 class Config:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    BUCKET_NAME = os.getenv("SUPABASE_BUCKET_NAME", "workout-files")
-    FILE_NAME = "workout.xlsx"
     ALLOWED_EXTENSIONS = {"xlsx"}
-    CACHE_TIMEOUT = 3600  # 1小时缓存过期
 
-
-config = Config()
 
 # Supabase client
 try:
-    supabase: Client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+    supabase: Client = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 except Exception as e:
     logger.error(f"Failed to initialize Supabase client: {e}")
     raise
 
 
-# 缓存类
-class ExcelCache:
-    def __init__(self):
-        self.excel_data = None
-        self.phase_sheets = {}
-        self.last_update = None
-
-    def is_expired(self) -> bool:
-        if not self.last_update:
-            return True
-        return (
-            datetime.now() - self.last_update
-        ).total_seconds() > Config.CACHE_TIMEOUT
-
-    def clear(self):
-        self.excel_data = None
-        self.phase_sheets = {}
-        self.last_update = None
-
-
-cache = ExcelCache()
-
-
-# 装饰器：确保数据已加载
-def require_excel_data(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not cache.excel_data or cache.is_expired():
-            success = load_excel_data()
-            if not success:
-                flash("无法加载训练数据，请重新上传文件", "error")
-                return redirect(url_for("upload_file"))
-        return f(*args, **kwargs)
-
-    return decorated_function
-
-
-# Utility Functions
-def load_excel_data() -> bool:
-    try:
-        # 从 Supabase 获取文件
-        response = supabase.storage.from_(config.BUCKET_NAME).download(config.FILE_NAME)
-        cache.excel_data = pd.ExcelFile(io.BytesIO(response))
-
-        cache.phase_sheets.clear()
-        for name in cache.excel_data.sheet_names:
-            if "阶段" in name:
-                try:
-                    phase_num = int("".join(filter(str.isdigit, name)))
-                    if phase_num >= 13:
-                        cache.phase_sheets[name] = pd.read_excel(
-                            io.BytesIO(response), sheet_name=name, header=None
-                        )
-                except ValueError:
-                    continue
-
-        cache.last_update = datetime.now()
-        return True
-    except Exception as e:
-        logger.error(f"Error loading excel data: {e}")
-        cache.clear()
-        return False
-
-
 def allowed_file(filename: str) -> bool:
     return (
         "." in filename
-        and filename.rsplit(".", 1)[1].lower() in config.ALLOWED_EXTENSIONS
+        and filename.rsplit(".", 1)[1].lower() in Config.ALLOWED_EXTENSIONS
     )
+
+
+def import_excel_to_db(file) -> bool:
+    """将Excel文件数据导入到数据库"""
+    try:
+        # 读取Excel文件
+        excel_data = pd.ExcelFile(file)
+
+        # 清空现有数据（删除所有记录）
+        supabase.table("workout_plans").delete().gt("id", 0).execute()
+
+        # 用于批量插入的数据列表
+        bulk_insert_data = []
+
+        # 处理每个阶段的工作表
+        for sheet_name in excel_data.sheet_names:
+            if "阶段" not in sheet_name:
+                continue
+
+            try:
+                phase_num = int("".join(filter(str.isdigit, sheet_name)))
+                if phase_num < 14:  # 只处理第14阶段及以后的数据
+                    continue
+
+                df = pd.read_excel(file, sheet_name=sheet_name, header=None)
+
+                # 遍历工作表寻找日期和训练计划
+                for row_idx in range(len(df)):
+                    for col_idx in range(len(df.columns)):
+                        cell_value = str(df.iloc[row_idx, col_idx])
+                        if not cell_value or cell_value == "nan":
+                            continue
+
+                        # 检查是否是日期（格式：M.D 完成）
+                        if "." in cell_value and "完成" in cell_value:
+                            date_part = cell_value.split(" ")[0]  # 获取日期部分
+                            if all(part.isdigit() for part in date_part.split(".")):
+                                # 找到表头行
+                                header_row_idx = None
+                                for i in range(row_idx - 1, -1, -1):
+                                    row_values = df.iloc[i].astype(str).tolist()
+                                    if any(
+                                        day in row_values
+                                        for day in [
+                                            "周一",
+                                            "周二",
+                                            "周三",
+                                            "周四",
+                                            "周五",
+                                            "周六",
+                                            "周日",
+                                        ]
+                                    ):
+                                        header_row_idx = i + 1
+                                        break
+
+                                if header_row_idx is not None:
+                                    # 获取计划内容
+                                    headers = df.iloc[
+                                        header_row_idx, col_idx : col_idx + 5
+                                    ].tolist()
+                                    # 将 nan 和 None 转换为空字符串
+                                    headers = [
+                                        str(h) if pd.notna(h) else "" for h in headers
+                                    ]
+
+                                    remarks = (
+                                        df.iloc[
+                                            header_row_idx + 1, col_idx : col_idx + 6
+                                        ]
+                                        .dropna()
+                                        .tolist()
+                                    )
+                                    # 确保备注是字符串列表
+                                    remarks = [str(r) for r in remarks]
+
+                                    plan_data = df.iloc[
+                                        header_row_idx + 2 : row_idx,
+                                        col_idx : col_idx + 5,
+                                    ].dropna(how="all")
+                                    # 将计划数据转换为嵌套列表，并处理 nan 值
+                                    plan_data_list = []
+                                    for _, row in plan_data.iterrows():
+                                        row_data = []
+                                        for val in row:
+                                            if pd.isna(val):
+                                                row_data.append("")
+                                            else:
+                                                row_data.append(str(val))
+                                        plan_data_list.append(row_data)
+
+                                    # 构建当前年份的日期
+                                    month, day = map(int, date_part.split("."))
+                                    current_year = datetime.now().year
+                                    date_str = f"{current_year}-{month:02d}-{day:02d}"
+
+                                    # 添加到批量插入列表
+                                    bulk_insert_data.append(
+                                        {
+                                            "date": date_str,
+                                            "phase": sheet_name,
+                                            "headers": headers,
+                                            "remarks": remarks,
+                                            "plan_data": plan_data_list,
+                                        }
+                                    )
+
+            except ValueError as ve:
+                logger.error(f"处理工作表 {sheet_name} 时出错: {ve}")
+                continue
+
+        # 批量插入数据
+        if bulk_insert_data:
+            supabase.table("workout_plans").insert(bulk_insert_data).execute()
+
+        return True
+    except Exception as e:
+        logger.error(f"导入数据失败: {e}")
+        return False
 
 
 def get_plan_for_date(
     date_str: str,
 ) -> Tuple[Optional[str], Optional[list], Optional[pd.DataFrame]]:
-    """Fetch the workout plan for a specific date."""
-    for sheet_name, df in cache.phase_sheets.items():
-        # Locate the date
-        match = df.apply(
-            lambda row: row.astype(str).str.contains(date_str, na=False), axis=1
+    """从数据库获取指定日期的训练计划"""
+    try:
+        response = (
+            supabase.table("workout_plans").select("*").eq("date", date_str).execute()
         )
 
-        if not match.any().any():
-            continue
-
-        row_index, col_index = match.stack().idxmax()
-
-        header_row_index = None
-        for i in range(row_index - 1, -1, -1):
-            row_values = df.iloc[i].astype(str).tolist()
-            if any(
-                day in row_values
-                for day in ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
-            ):
-                header_row_index = i + 1
-                break
-
-        if header_row_index is None:
+        if not response.data:
             return None, None, None
 
-        plan = df.iloc[
-            header_row_index + 2 : row_index, col_index : col_index + 5
-        ].dropna(how="all")
-        headers = df.iloc[header_row_index, col_index : col_index + 5].tolist()
-        plan.columns = headers
+        plan_data = response.data[0]
+        plan_df = pd.DataFrame(plan_data["plan_data"], columns=plan_data["headers"])
 
-        # Remove rows with all zeros
-        plan = plan[(plan != 0).any(axis=1)]
-
-        remarks = (
-            df.iloc[header_row_index + 1, col_index : col_index + 6].dropna().tolist()
-        )
-
-        return sheet_name, remarks, plan
-
-    return None, None, None
-
-
-# Routes
-@app.route("/upload", methods=["GET", "POST"])
-def upload_file():
-    if request.method == "POST":
-        file = request.files.get("file")
-        if not file or file.filename == "":
-            flash("没有选择文件", "error")
-            return redirect(request.url)
-
-        if not allowed_file(file.filename):
-            flash("不支持的文件类型", "error")
-            return redirect(request.url)
-
-        try:
-            # 上传文件到 Supabase Storage
-            response = supabase.storage.from_(config.BUCKET_NAME).update(
-                path=config.FILE_NAME,
-                file=file.read(),
-                file_options={
-                    "content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    # "upsert": True,
-                },
-            )
-
-            cache.clear()  # 清除缓存
-            if load_excel_data():
-                flash("文件上传成功", "success")
-                return redirect(url_for("index"))
-            else:
-                flash("文件上传成功但加载失败，请检查文件格式", "error")
-                return redirect(request.url)
-
-        except Exception as e:
-            logger.error(f"Upload failed: {e}")
-            flash(f"上传失败: {str(e)}", "error")
-            return redirect(request.url)
-
-    return render_template_string(open("templates/upload.html").read())
+        return plan_data["phase"], plan_data["remarks"], plan_df
+    except Exception as e:
+        logger.error(f"获取训练计划失败: {e}")
+        return None, None, None
 
 
 @app.route("/", methods=["GET"])
-@require_excel_data
 def index():
     try:
         date_str = request.args.get("date", datetime.now().strftime("%Y-%m-%d"))
         formatted_date_str = datetime.strptime(date_str, "%Y-%m-%d").strftime("%-m.%-d")
 
-        sheet_name, remarks, plan = get_plan_for_date(formatted_date_str)
+        sheet_name, remarks, plan = get_plan_for_date(date_str)
 
         message = (
             f"{formatted_date_str} 的训练计划（{sheet_name}）"
@@ -236,15 +220,66 @@ def index():
         return redirect(url_for("upload_file"))
 
 
+@app.route("/upload", methods=["GET", "POST"])
+def upload_file():
+    if request.method == "POST":
+        file = request.files.get("file")
+        if not file or file.filename == "":
+            flash("没有选择文件", "error")
+            return redirect(request.url)
+
+        if not allowed_file(file.filename):
+            flash("不支持的文件类型", "error")
+            return redirect(request.url)
+
+        try:
+            if import_excel_to_db(file):
+                flash("文件导入成功", "success")
+                return redirect(url_for("index"))
+            else:
+                flash("文件导入失败，请检查文件格式", "error")
+                return redirect(request.url)
+        except Exception as e:
+            logger.error(f"Upload failed: {e}")
+            flash(f"上传失败: {str(e)}", "error")
+            return redirect(request.url)
+
+    return render_template_string(open("templates/upload.html").read())
+
+
 @app.route("/week", methods=["GET"])
-@require_excel_data
 def week_view():
     try:
-        week_dates = get_current_week_dates()
-        week_plan = {
-            date.strftime("%Y-%m-%d"): get_plan_for_date(date.strftime("%-m.%-d"))
-            for date in week_dates
-        }
+        # 获取本周的日期范围
+        today = datetime.now()
+        week_start = today - timedelta(days=today.weekday())
+        week_dates = [week_start + timedelta(days=i) for i in range(7)]
+        date_strs = [date.strftime("%Y-%m-%d") for date in week_dates]
+
+        # 批量获取一周的训练计划
+        response = (
+            supabase.table("workout_plans").select("*").in_("date", date_strs).execute()
+        )
+
+        # 将结果转换为以日期为键的字典
+        plans_by_date = {item["date"]: item for item in response.data}
+
+        # 构建周计划数据
+        week_plan = {}
+        for date_str in date_strs:
+            if date_str in plans_by_date:
+                plan_data = plans_by_date[date_str]
+                plan_df = pd.DataFrame(
+                    plan_data["plan_data"], columns=plan_data["headers"]
+                )
+                week_plan[date_str] = (
+                    plan_data["phase"],
+                    plan_data["remarks"],
+                    plan_df,
+                )
+            else:
+                week_plan[date_str] = (None, None, None)
+
         return render_template_string(
             open("templates/week.html").read(), week_plan=week_plan
         )
@@ -254,28 +289,5 @@ def week_view():
         return redirect(url_for("index"))
 
 
-def get_current_week_dates():
-    today = datetime.now().date()
-    monday = today - timedelta(days=today.weekday())
-    return [monday + timedelta(days=i) for i in range(7)]
-
-
-# 错误处理
-@app.errorhandler(Exception)
-def handle_error(error):
-    logger.error(f"Unhandled error: {error}")
-    flash("发生未知错误", "error")
-    return redirect(url_for("index"))
-
-
-# Initialize the application
-def initialize_app():
-    try:
-        load_excel_data()
-    except Exception as e:
-        logger.error(f"Failed to initialize app: {e}")
-
-
 if __name__ == "__main__":
-    initialize_app()
     app.run(debug=True)
