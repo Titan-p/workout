@@ -2,76 +2,854 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>上传新的Excel文件</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="上传计划">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#059669">
+    <meta name="description" content="上传Excel训练计划文件 - 支持拖拽和触摸操作">
+    <title>上传训练计划 - Excel文件导入</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #64748b;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
+
+        /* Performance optimizations */
+        .container, .upload-area, .file-label, .submit-btn, .btn {
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-perspective: 1000px;
+            perspective: 1000px;
+        }
+
+        /* Reduce motion for users who prefer it */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
         .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 0 auto;
+            background: var(--card-background);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
+            color: white;
+            padding: 2rem;
             text-align: center;
+            position: relative;
         }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        form {
-            margin-bottom: 20px;
+
+        .header .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+            margin-bottom: 0;
         }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .upload-area {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            background: var(--background-color);
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: #f0f9ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            opacity: 0.7;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .upload-subtext {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
         input[type="file"] {
             display: none;
         }
+
         .file-label {
-            background-color: #4CAF50;
+            background: linear-gradient(135deg, var(--success-color), #10b981);
             color: white;
-            padding: 10px 20px;
-            border-radius: 4px;
+            padding: 1rem 2rem;
+            border-radius: 8px;
             cursor: pointer;
-            display: inline-block;
-            margin-bottom: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
         }
+
         .file-label:hover {
-            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
         }
-        input[type="submit"] {
-            background-color: #008CBA;
+
+        .file-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info i {
+            color: var(--primary-color);
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .file-size {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .upload-form {
+            margin-bottom: 2rem;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
             color: white;
-            padding: 10px 20px;
+            padding: 1rem 2rem;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
         }
-        input[type="submit"]:hover {
-            background-color: #007B9A;
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .submit-btn:disabled {
+            background: var(--secondary-color);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .requirements {
+            background: #fefce8;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .requirements h3 {
+            color: var(--warning-color);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .requirements ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .requirements li {
+            padding: 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .requirements li::before {
+            content: "✓";
+            color: var(--success-color);
+            font-weight: bold;
+        }
+
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .progress-bar {
+            display: none;
+            background: var(--background-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, var(--success-color), #10b981);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .flash-message {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        .flash-message.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .flash-message.error {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+                background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            }
+
+            .container {
+                border-radius: 12px;
+                margin: 0;
+                max-width: 100%;
+            }
+
+            .header {
+                padding: 1.5rem 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .header .subtitle {
+                font-size: 0.9rem;
+                margin-bottom: 0;
+            }
+
+            .content {
+                padding: 1rem;
+            }
+
+            .upload-area {
+                padding: 2rem 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .upload-icon {
+                font-size: 3rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .upload-text {
+                font-size: 1.1rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .upload-subtext {
+                font-size: 0.85rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .file-label {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+
+            .file-info {
+                padding: 0.75rem;
+                margin-top: 0.75rem;
+            }
+
+            .file-name {
+                font-size: 0.9rem;
+            }
+
+            .file-size {
+                font-size: 0.8rem;
+            }
+
+            .requirements {
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .requirements h3 {
+                font-size: 1rem;
+                margin-bottom: 0.75rem;
+            }
+
+            .requirements li {
+                font-size: 0.85rem;
+                padding: 0.2rem 0;
+            }
+
+            .submit-btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
+            }
+
+            .progress-bar {
+                padding: 0.75rem;
+            }
+
+            .progress-text {
+                font-size: 0.85rem;
+                margin-bottom: 0.4rem;
+            }
+
+            .navigation {
+                flex-direction: column;
+                gap: 1rem;
+                margin-top: 1.5rem;
+                padding-top: 1.5rem;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 0.7rem;
+                font-size: 0.9rem;
+            }
+
+            .flash-messages {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+            }
+
+            .flash-message {
+                font-size: 0.85rem;
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .upload-area {
+                padding: 1.5rem 0.75rem;
+                border-width: 2px;
+            }
+
+            .upload-icon {
+                font-size: 2.5rem;
+            }
+
+            .upload-text {
+                font-size: 1rem;
+            }
+
+            .upload-subtext {
+                font-size: 0.8rem;
+            }
+
+            .file-label {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.85rem;
+            }
+
+            .requirements {
+                padding: 0.75rem;
+            }
+
+            .requirements h3 {
+                font-size: 0.9rem;
+            }
+
+            .requirements li {
+                font-size: 0.8rem;
+            }
+
+            .submit-btn {
+                padding: 0.7rem 1.2rem;
+                font-size: 0.9rem;
+            }
+
+            .flash-message {
+                font-size: 0.8rem;
+                padding: 0.6rem 0.8rem;
+            }
+        }
+
+        /* Touch-friendly improvements */
+        @media (hover: none) and (pointer: coarse) {
+            .upload-area {
+                cursor: pointer;
+            }
+
+            .file-label,
+            .submit-btn,
+            .btn {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .upload-area:active {
+                transform: scale(0.98);
+            }
+
+            .file-label:active,
+            .submit-btn:active,
+            .btn:active {
+                transform: scale(0.95);
+            }
+        }
+
+        /* Safe area for modern phones with notches */
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: max(8px, env(safe-area-inset-left));
+                padding-right: max(8px, env(safe-area-inset-right));
+                padding-top: max(8px, env(safe-area-inset-top));
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
+        }
+
+        /* Drag and drop visual feedback for mobile */
+        .upload-area.dragover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        /* Optimize for one-handed usage */
+        @media (max-height: 800px) and (orientation: portrait) {
+            .upload-area {
+                padding: 1.5rem 1rem;
+            }
+
+            .header {
+                padding: 1rem;
+            }
+
+            .content {
+                padding: 0.75rem;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {% if category == 'success' %}
+                            <i class="fas fa-check-circle"></i>
+                        {% else %}
+                            <i class="fas fa-exclamation-circle"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
     <div class="container">
-        <h1>上传新的Excel文件</h1>
-        <form method="post" enctype="multipart/form-data">
-            <label for="file" class="file-label">选择文件</label>
-            <input type="file" name="file" id="file" accept=".xlsx">
-            <br>
-            <input type="submit" value="上传">
-        </form>
-        <a href="/">返回主页</a>
+        <div class="header">
+            <h1><i class="fas fa-cloud-upload-alt"></i> 上传训练计划</h1>
+            <p class="subtitle">导入Excel文件，更新训练计划</p>
+        </div>
+
+        <div class="content">
+            <!-- 文件要求 -->
+            <div class="requirements">
+                <h3><i class="fas fa-info-circle"></i> 文件要求</h3>
+                <ul>
+                    <li>文件格式：Excel (.xlsx)</li>
+                    <li>文件大小：小于10MB</li>
+                    <li>工作表名称需包含"阶段"字样</li>
+                    <li>仅导入第14阶段及以后的数据</li>
+                </ul>
+            </div>
+
+            <!-- 上传区域 -->
+            <form method="post" enctype="multipart/form-data" class="upload-form" id="uploadForm">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-excel"></i>
+                    </div>
+                    <div class="upload-text">拖拽Excel文件到此处或点击选择文件</div>
+                    <div class="upload-subtext">支持 .xlsx 格式，最大10MB</div>
+
+                    <div class="file-input-wrapper">
+                        <label for="file" class="file-label">
+                            <i class="fas fa-folder-open"></i> 选择文件
+                        </label>
+                        <input type="file" name="file" id="file" accept=".xlsx" required>
+                    </div>
+
+                    <div class="file-info" id="fileInfo">
+                        <i class="fas fa-file-excel"></i>
+                        <div>
+                            <div class="file-name" id="fileName"></div>
+                            <div class="file-size" id="fileSize"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                    <i class="fas fa-upload"></i> 开始上传
+                </button>
+
+                <!-- 进度条 -->
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-text">正在上传文件...</div>
+                    <div class="progress">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- 导航 -->
+            <div class="navigation">
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> 返回主页
+                </a>
+            </div>
+        </div>
     </div>
+
     <script>
-        document.getElementById('file').onchange = function() {
-            document.querySelector('.file-label').textContent = this.files[0].name;
-        };
+        // 文件上传处理
+        const fileInput = document.getElementById('file');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        // 文件选择处理
+        fileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+
+                fileName.textContent = file.name;
+                fileSize.textContent = `${sizeInMB} MB`;
+                fileInfo.classList.add('show');
+                submitBtn.disabled = false;
+
+                // 验证文件类型
+                if (!file.name.toLowerCase().endsWith('.xlsx')) {
+                    alert('请选择Excel文件 (.xlsx 格式)');
+                    resetFileInput();
+                }
+
+                // 验证文件大小 (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    alert('文件过大，请选择小于10MB的文件');
+                    resetFileInput();
+                }
+            } else {
+                resetFileInput();
+            }
+        });
+
+        // 拖拽上传处理
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                const event = new Event('change', { bubbles: true });
+                fileInput.dispatchEvent(event);
+            }
+        });
+
+        // 表单提交处理
+        uploadForm.addEventListener('submit', function(e) {
+            if (!fileInput.files.length) {
+                e.preventDefault();
+                alert('请选择要上传的文件');
+                return;
+            }
+
+            // 显示进度条
+            progressBar.classList.add('show');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+
+            // 模拟进度条
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                progressFill.style.width = progress + '%';
+            }, 200);
+
+            // 清理函数
+            window.addEventListener('beforeunload', function() {
+                clearInterval(progressInterval);
+            });
+        });
+
+        // 重置文件输入
+        function resetFileInput() {
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            submitBtn.disabled = true;
+        }
+
+        // 自动隐藏flash消息
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.animation = 'slideIn 0.3s ease reverse';
+                    setTimeout(() => message.remove(), 300);
+                }, 5000);
+            });
+
+            // 移动端触摸优化
+            if ('ontouchstart' in window) {
+                // 添加触摸反馈
+                const touchElements = document.querySelectorAll('.file-label, .submit-btn, .btn');
+                touchElements.forEach(element => {
+                    element.addEventListener('touchstart', function() {
+                        this.style.transform = 'scale(0.95)';
+                    });
+                    element.addEventListener('touchend', function() {
+                        this.style.transform = '';
+                    });
+                });
+
+                // 移动端拖拽优化
+                const uploadArea = document.getElementById('uploadArea');
+
+                uploadArea.addEventListener('touchstart', function(e) {
+                    this.classList.add('touch-active');
+                }, { passive: true });
+
+                uploadArea.addEventListener('touchend', function(e) {
+                    this.classList.remove('touch-active');
+                }, { passive: true });
+
+                // 防止移动端双击缩放
+                let lastTouchEnd = 0;
+                document.addEventListener('touchend', function(event) {
+                    const now = (new Date()).getTime();
+                    if (now - lastTouchEnd <= 300) {
+                        event.preventDefault();
+                    }
+                    lastTouchEnd = now;
+                }, false);
+
+                // 优化文件选择体验
+                fileInput.addEventListener('touchstart', function(e) {
+                    e.stopPropagation();
+                });
+            }
+        });
+
+        // 添加触摸反馈样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .touch-active {
+                transform: scale(1.02) !important;
+                box-shadow: 0 8px 25px rgba(37, 99, 235, 0.3) !important;
+            }
+
+            @media (hover: none) and (pointer: coarse) {
+                .upload-area:active {
+                    transform: scale(0.98);
+                }
+
+                .file-label:active,
+                .submit-btn:active,
+                .btn:active {
+                    transform: scale(0.95);
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
