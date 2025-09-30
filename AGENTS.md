@@ -37,8 +37,10 @@
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; optional `FLASK_SECRET_KEY`.
 - Note: `.env.example` may not include `SUPABASE_SERVICE_ROLE_KEY`—add it locally.
 - Supabase table `workout_plans`: `date` (YYYY-MM-DD), JSON `headers`, `remarks`, `plan_data`.
+- New training feature expects Supabase tables `training_sessions` and `training_sets`; see `docs/training_schema.sql` for DDL.
 - Never commit secrets; use GitHub Actions secrets for CI.
 
 ## Agent-Specific Notes
 - Keep patches minimal and scoped; avoid unrelated edits.
 - Update this guide when changing structure, env, or workflows.
+- When additional context is needed, proactively call available MCP tools first (e.g., `mcp:ask`, `mcp:search`) before asking the user.

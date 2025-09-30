@@ -887,10 +887,29 @@
                                 </div>
                             {% endif %}
 
-                            {% if day_data.plan is not none and not day_data.plan.empty %}
+                            {% if day_data.plan_rows %}
                                 <div class="plan-section">
                                     <h4 class="plan-title"><i class="fas fa-list-alt"></i> 训练内容</h4>
-                                    {{ day_data.plan.fillna("").to_html(index=False, classes="custom-table") | safe }}
+                                    <div class="table-wrapper">
+                                        <table class="custom-table">
+                                            <thead>
+                                                <tr>
+                                                    {% for header in day_data.plan_headers %}
+                                                        <th>{{ header }}</th>
+                                                    {% endfor %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for row in day_data.plan_rows %}
+                                                    <tr>
+                                                        {% for cell in row %}
+                                                            <td>{{ cell }}</td>
+                                                        {% endfor %}
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             {% endif %}
                         {% else %}

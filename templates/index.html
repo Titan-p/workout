@@ -787,7 +787,26 @@
                 <!-- 训练计划部分 -->
                 <div class="plan-section">
                     <h3><i class="fas fa-list-alt"></i> 训练内容</h3>
-                    {{ plan_html | safe }}
+                    <div class="table-wrapper">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    {% for header in plan_headers %}
+                                        <th>{{ header }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in plan_rows %}
+                                    <tr>
+                                        {% for cell in row %}
+                                            <td>{{ cell }}</td>
+                                        {% endfor %}
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             {% else %}
                 <!-- 休息日状态 -->
@@ -807,6 +826,9 @@
                 </div>
 
                 <div class="action-buttons">
+                    <a href="/training" class="btn btn-success">
+                        <i class="fas fa-play"></i> 开始训练
+                    </a>
                     <a href="/week" class="btn btn-secondary">
                         <i class="fas fa-calendar-week"></i> 周视图
                     </a>
