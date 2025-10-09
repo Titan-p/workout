@@ -110,10 +110,13 @@ def extract_plan_data(df, header_row_idx, date_row_idx, col_idx):
         remarks = df.iloc[header_row_idx + 1, col_idx : col_idx + 6].dropna().tolist()
         remarks = [str(r) for r in remarks]
 
-        plan_data = df.iloc[header_row_idx + 2 : date_row_idx, col_idx : col_idx + 5].dropna(how="all")
+        plan_data = df.iloc[header_row_idx + 2 : date_row_idx, col_idx : col_idx + 5]
         plan_data_list = []
         for _, row in plan_data.iterrows():
-            row_data = [str(val) if pd.notna(val) else "" for val in row]
+            row_data = [str(val).strip() if pd.notna(val) else "" for val in row]
+            # Skip rows where all values are '' or '0'
+            if all(value.strip() in {"", "0"} for value in row_data):
+                continue
             plan_data_list.append(row_data)
 
         date_cell = str(df.iloc[date_row_idx, col_idx])
@@ -122,9 +125,10 @@ def extract_plan_data(df, header_row_idx, date_row_idx, col_idx):
         current_year = datetime.now().year
         date_str = f"{current_year}-{month:02d}-{day:02d}"
 
+        phase_val = df.iloc[header_row_idx - 1, 0] if header_row_idx > 0 else "未知阶段"
         return {
             "date": date_str,
-            "phase": df.iloc[header_row_idx - 1, 0] if header_row_idx > 0 else "未知阶段",
+            "phase": phase_val if pd.notna(phase_val) else None,
             "headers": headers,
             "remarks": remarks,
             "plan_data": plan_data_list,
@@ -139,10 +143,33 @@ def insert_batch(supabase, data_list):
     try:
         if not data_list:
             return
-        supabase.table("workout_plans").insert(data_list).execute()
+        normalized = []
+        for entry in data_list:
+            clean_entry = {
+                "date": entry.get("date"),
+                "phase": entry.get("phase"),
+                "headers": [str(header) for header in entry.get("headers", [])],
+                "remarks": [str(remark) for remark in entry.get("remarks", [])],
+                "plan_data": [
+                    ["" if cell is None else str(cell) for cell in row]
+                    for row in entry.get("plan_data", [])
+                ],
+            }
+            normalized.append(clean_entry)
+
+        supabase.table("workout_plans").insert(normalized).execute()
         logger.info("批量插入 %d 条记录成功", len(data_list))
     except Exception as exc:  # pragma: no cover - defensive
         logger.error("批量插入失败: %s", exc)
+        try:
+            sample = data_list[0] if data_list else {}
+            logger.error(
+                "失败批次信息: 条目数=%d, 示例记录=%s",
+                len(data_list),
+                sample,
+            )
+        except Exception as sample_exc:  # pragma: no cover - defensive
+            logger.exception("记录批次示例失败: %s", sample_exc)
 
 
 def get_plan_for_date(

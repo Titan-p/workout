@@ -38,6 +38,11 @@ def test_today_plan_summary(client, supabase_stub):
     assert payload["exercises"][0]["target_sets"] == 3
     assert payload["exercises"][0]["target_rest_seconds"] == 90
     assert payload["exercises"][1]["target_rest_seconds"] == 120
+    assert payload["trackable_exercise_count"] == 2
+    assert payload["note_exercise_count"] == 0
+    assert payload["is_rest_day"] is False
+    assert all(entry["is_trackable"] for entry in payload["exercises"])
+    assert all(entry["is_combination"] is False for entry in payload["exercises"])
 
 
 def test_training_session_flow(client, supabase_stub):
@@ -55,6 +60,8 @@ def test_training_session_flow(client, supabase_stub):
     assert session_payload["current_set"] == 1
     assert session_payload["default_rest_seconds"] == 90
     assert session_payload["target_rest_seconds"] == 90
+    assert session_payload["is_combination"] is False
+    assert session_payload["components"] == []
 
     session_id = session_payload["session"]["session_id"]
 
@@ -78,15 +85,14 @@ def test_training_session_flow(client, supabase_stub):
     assert result["status"] == "completed"
     assert result["session"]["status"] == "completed"
     assert len(rest_values) == 5
-    assert rest_values.count(90) == 1
-    assert rest_values.count(45) == 1
-    assert rest_values.count(120) == 3
+    assert rest_values == [90, 90, 120, 120, 120]
 
     # history endpoint should now include six entries
     history = client.get("/api/training-history").get_json()
     assert len(history) == 6
     assert {log["exercise_name"] for log in history} == {"深蹲", "硬拉"}
-    assert {log.get("rest_seconds") for log in history} == {90, 120}
+    logged_rests = {log.get("rest_seconds") for log in history}
+    assert logged_rests == {45, 90, 120}
 
     # current session reports completed state
     status = client.get(f"/api/current-session?date={today}").get_json()
@@ -110,3 +116,75 @@ def test_finish_training_endpoint(client, supabase_stub):
     status = client.get(f"/api/current-session?date={today}").get_json()
     assert status["status"] in {"no_session", "completed"}
 
+
+def test_rest_day_blocks_training(client, supabase_stub):
+    today = datetime.now().strftime("%Y-%m-%d")
+    supabase_stub.seed(
+        "workout_plans",
+        [
+            {
+                "date": today,
+                "phase": "恢复阶段",
+                "headers": ["动作", "组数", "次数", "重量", "休息"],
+                "plan_data": [["休息", "", "", "", ""]],
+                "remarks": ["好好休息"],
+            }
+        ],
+    )
+
+    payload = client.get(f"/api/today-plan?date={today}").get_json()
+    assert payload["trackable_exercise_count"] == 0
+    assert payload["note_exercise_count"] == 1
+    assert payload["is_rest_day"] is True
+    assert payload["exercises"][0]["is_trackable"] is False
+    assert payload["exercises"][0]["category"] == "rest"
+
+    start_resp = client.post("/api/start-training", json={"date": today})
+    assert start_resp.status_code == 400
+    assert start_resp.get_json()["error"]
+
+
+def test_plan_filters_zero_only_rows_and_detects_combination(client, supabase_stub):
+    today = datetime.now().strftime("%Y-%m-%d")
+    supabase_stub.seed(
+        "workout_plans",
+        [
+            {
+                "date": today,
+                "phase": "第三周",
+                "headers": ["动作", "组数", "次数", "重量", "组间歇"],
+                "plan_data": [
+                    ["垫铃高拉+短触地跌落跳", "4", "2+4", "80", "180秒"],
+                    ["助跑跳箱/扣矮框", "0", "0", "0", "0"],
+                    ["筋膜梳理、静态拉伸", "", "", "", ""]
+                ],
+                "remarks": ["注意组合动作顺序"],
+            }
+        ],
+    )
+
+    payload = client.get(f"/api/today-plan?date={today}").get_json()
+
+    names = [entry["exercise_name"] for entry in payload["exercises"]]
+    assert "助跑跳箱/扣矮框" not in names
+
+    combination = next(entry for entry in payload["exercises"] if entry["exercise_name"] == "垫铃高拉+短触地跌落跳")
+    assert combination["is_trackable"] is True
+    assert combination["is_combination"] is True
+    assert combination["components"] == ["垫铃高拉", "短触地跌落跳"]
+    assert combination["primary_component"] == "垫铃高拉"
+            assert combination["target_rest_seconds"] == 180
+    warmup = next(entry for entry in payload["exercises"] if entry["exercise_name"] == "筋膜梳理、静态拉伸")
+    assert warmup["is_trackable"] is False
+    assert warmup["category"] == "warmup"
+
+    assert payload["trackable_exercise_count"] == 1
+    assert payload["note_exercise_count"] == 1
+    assert payload["is_rest_day"] is False
+
+    start_resp = client.post("/api/start-training", json={"date": today})
+    assert start_resp.status_code == 200
+    session_payload = start_resp.get_json()
+    assert session_payload["is_combination"] is True
+    assert session_payload["components"] == ["垫铃高拉", "短触地跌落跳"]
+    assert session_payload["primary_component"] == "垫铃高拉"

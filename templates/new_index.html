@@ -183,11 +183,29 @@
         .exercise-info h4 {
             font-weight: 600;
             margin-bottom: 4px;
+            white-space: pre-line;
         }
 
         .exercise-info p {
             color: var(--gray-600);
             font-size: 0.9rem;
+            white-space: pre-line;
+        }
+
+        .component-tags {
+            margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .component-tag {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary);
+            font-size: 0.8rem;
+            font-weight: 600;
         }
 
         .training-session {
@@ -364,6 +382,62 @@
             color: white;
         }
 
+        .status-note {
+            background: var(--gray-400);
+            color: white;
+        }
+
+        .status-warmup {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-rest {
+            background: var(--gray-600);
+            color: white;
+        }
+
+        .status-log {
+            background: var(--primary-dark);
+            color: white;
+        }
+
+        .exercise-item.note-item {
+            background: var(--gray-50);
+            border-style: dashed;
+        }
+
+        .section-title {
+            font-weight: 700;
+            margin: 20px 0 12px;
+            color: var(--gray-700);
+        }
+
+        .rest-day-card {
+            background: var(--gray-100);
+            border: 1px dashed var(--gray-300);
+            border-radius: 10px;
+            padding: 16px;
+            color: var(--gray-600);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .rest-day-message {
+            display: none;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 10px;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            text-align: center;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
@@ -425,6 +499,9 @@
                     <i class="fas fa-play"></i> 训练进行中
                 </div>
                 <div id="training-session">
+                    <div id="rest-day-message" class="rest-day-message">
+                        今天是休息日，专注恢复和拉伸。
+                    </div>
                     <div id="no-session">
                         <p style="text-align: center; color: var(--gray-600); margin-bottom: 20px;">
                             还没有开始训练
@@ -434,7 +511,7 @@
                             <input type="number" id="rest-interval-input" min="10" step="5" value="{{ default_rest_interval }}">
                         </div>
                         <div style="text-align: center;">
-                            <button class="btn btn-primary btn-large" onclick="startTraining()">
+                            <button id="start-training-btn" class="btn btn-primary btn-large" onclick="startTraining()">
                                 <i class="fas fa-play"></i> 开始训练
                             </button>
                         </div>
@@ -522,6 +599,7 @@
         let sessionState = null;
         let restTimerHandle = null;
         let manualRestSeconds = null;
+        let todayPlanData = null;
         const selectedDate = '{{ selected_date }}';
         const activeDate = selectedDate || new Date().toISOString().split('T')[0];
 
@@ -539,6 +617,48 @@
                 return `休息 ${minutes} 分 ${remainder} 秒`;
             }
             return `休息 ${value} 秒`;
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value).replace(/[&<>"']/g, char => {
+                const map = {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;',
+                };
+                return map[char] || char;
+            });
+        }
+
+        function formatWithBreaks(text) {
+            if (!text) {
+                return '';
+            }
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
+
+        function updateTrainingAvailability(plan) {
+            const startButton = document.getElementById('start-training-btn');
+            const restMessage = document.getElementById('rest-day-message');
+            if (!startButton || !restMessage) {
+                return;
+            }
+
+            const hasActiveSession = sessionState && sessionState.status === 'active';
+            const isRestDay = !plan || plan.trackable_exercise_count === 0;
+
+            if (isRestDay && !hasActiveSession) {
+                restMessage.style.display = 'block';
+                startButton.disabled = true;
+            } else {
+                restMessage.style.display = 'none';
+                startButton.disabled = false;
+            }
         }
 
         function getRestInput() {
@@ -601,8 +721,12 @@
             try {
                 const response = await fetch(`/api/today-plan?date=${activeDate}`);
                 const plan = await response.json();
+                todayPlanData = plan;
+
                 const planDiv = document.getElementById('today-plan');
-                const exercises = plan.exercises || [];
+                const exercises = Array.isArray(plan.exercises) ? plan.exercises : [];
+
+                updateTrainingAvailability(plan);
 
                 const restInput = getRestInput();
                 if (restInput && (!sessionState || sessionState.status === 'completed')) {
@@ -617,62 +741,159 @@
                     return;
                 }
 
+                const trackableExercises = exercises.filter(exercise => exercise && exercise.is_trackable !== false);
+                const noteExercises = exercises.filter(exercise => exercise && exercise.is_trackable === false);
+
                 let html = '';
                 if (plan.phase) {
-                    html += `<p style="font-weight:600; margin-bottom:8px;">阶段：${plan.phase}</p>`;
+                    html += `<p style="font-weight:600; margin-bottom:8px;">阶段：${escapeHtml(plan.phase)}</p>`;
                 }
                 if (plan.date) {
-                    html += `<p style="color: var(--gray-500); margin-bottom:6px;">日期：${plan.date}</p>`;
+                    html += `<p style="color: var(--gray-500); margin-bottom:6px;">日期：${escapeHtml(plan.date)}</p>`;
                 }
                 if ((plan.remarks || []).length) {
                     html += '<ul class="remarks-list">';
                     for (const remark of plan.remarks) {
-                        html += `<li>${remark}</li>`;
+                        html += `<li>${escapeHtml(remark)}</li>`;
                     }
                     html += '</ul>';
                 }
 
-                exercises.forEach(exercise => {
-                    const details = exercise.details || [];
+                if (plan.is_rest_day) {
+                    html += '<div class="rest-day-card">今天安排休息，专注恢复、营养与睡眠。</div>';
+                }
+
+                const renderExerciseItem = (exercise) => {
+                    if (!exercise) {
+                        return '';
+                    }
+
                     const summaryParts = [];
-                    if (exercise.target_sets) {
-                        summaryParts.push(`目标 ${exercise.target_sets} 组`);
-                    }
-                    if (exercise.target_reps) {
-                        summaryParts.push(`${exercise.target_reps} 次`);
-                    }
-                    if (exercise.target_weight) {
-                        summaryParts.push(exercise.target_weight);
-                    }
-                    if (exercise.target_rest_seconds) {
-                        const restLabel = formatRestLabel(exercise.target_rest_seconds);
-                        if (restLabel) {
-                            summaryParts.push(restLabel);
+                    if (exercise.is_trackable) {
+                        if (exercise.target_sets) {
+                            summaryParts.push(`目标 ${exercise.target_sets} 组`);
+                        }
+                        if (exercise.target_reps) {
+                            summaryParts.push(`${exercise.target_reps} 次`);
+                        }
+                        if (exercise.target_weight) {
+                            summaryParts.push(exercise.target_weight);
+                        }
+                        if (exercise.target_rest_seconds) {
+                            const restLabel = formatRestLabel(exercise.target_rest_seconds);
+                            if (restLabel) {
+                                summaryParts.push(restLabel);
+                            }
                         }
                     }
 
-                    html += `
-                        <div class="exercise-item">
+                    const details = Array.isArray(exercise.details) ? exercise.details : [];
+                    let detailsHtml = '';
+                    if (details.length) {
+                        const content = exercise.is_trackable
+                            ? details.map(escapeHtml).join(' / ')
+                            : details.map(escapeHtml).join('<br>');
+                        if (content) {
+                            detailsHtml = `<p>${content}</p>`;
+                        }
+                    }
+
+                    let badgeClass = 'status-badge status-pending';
+                    let badgeText = '待完成';
+                    if (!exercise.is_trackable) {
+                        const category = exercise.category || 'note';
+                        const badgeMap = {
+                            warmup: { className: 'status-badge status-warmup', text: '热身' },
+                            rest: { className: 'status-badge status-rest', text: '休息' },
+                            log: { className: 'status-badge status-log', text: '记录' },
+                            note: { className: 'status-badge status-note', text: '提示' },
+                        };
+                        const mapping = badgeMap[category] || badgeMap.note;
+                        badgeClass = mapping.className;
+                        badgeText = mapping.text;
+                    }
+
+                    const itemClass = `exercise-item${exercise.is_trackable ? '' : ' note-item'}`;
+                    const nameHtml = formatWithBreaks(exercise.exercise_name || '');
+                    const summaryHtml = summaryParts.length
+                        ? `<p>${summaryParts.map(escapeHtml).join(' • ')}</p>`
+                        : '';
+                    const components = Array.isArray(exercise.components) ? exercise.components : [];
+                    const componentHtml = exercise.is_combination && components.length > 1
+                        ? `<div class="component-tags">${components.map(component => `<span class="component-tag">${escapeHtml(component)}</span>`).join('')}</div>`
+                        : '';
+
+                    return `
+                        <div class="${itemClass}">
                             <div class="exercise-info">
-                                <h4>${exercise.exercise_name}</h4>
-                                ${summaryParts.length ? `<p>${summaryParts.join(' • ')}</p>` : ''}
-                                ${details.length ? `<p>${details.join(' / ')}</p>` : ''}
+                                <h4>${nameHtml}</h4>
+                                ${summaryHtml}
+                                ${detailsHtml}
+                                ${componentHtml}
                             </div>
                             <div>
-                                <span class="status-badge status-pending">待完成</span>
+                                <span class="${badgeClass}">${badgeText}</span>
                             </div>
                         </div>
                     `;
-                });
+                };
+
+                if (trackableExercises.length) {
+                    html += '<div class="section-title">核心训练</div>';
+                    trackableExercises.forEach(exercise => {
+                        html += renderExerciseItem(exercise);
+                    });
+                }
+
+                if (noteExercises.length) {
+                    const noteGroups = noteExercises.reduce((acc, exercise) => {
+                        const key = exercise.category || 'note';
+                        if (!acc[key]) {
+                            acc[key] = [];
+                        }
+                        acc[key].push(exercise);
+                        return acc;
+                    }, {});
+
+                    const order = ['warmup', 'rest', 'log', 'note'];
+                    const titles = {
+                        warmup: '热身与激活',
+                        rest: '恢复安排',
+                        log: '训练记录',
+                        note: '其他提示',
+                    };
+
+                    order.forEach(key => {
+                        const items = noteGroups[key];
+                        if (!items || !items.length) {
+                            return;
+                        }
+                        html += `<div class="section-title">${titles[key] || '其他提示'}</div>`;
+                        items.forEach(exercise => {
+                            html += renderExerciseItem(exercise);
+                        });
+                    });
+                }
+
+                if (!html) {
+                    html = '<p style="text-align: center; color: var(--gray-600);">今天没有训练计划</p>';
+                }
 
                 planDiv.innerHTML = html;
             } catch (error) {
                 console.error('加载今日计划失败:', error);
+                todayPlanData = null;
+                updateTrainingAvailability(null);
                 document.getElementById('today-plan').innerHTML = '<p style="color: var(--danger);">加载失败</p>';
             }
         }
 
         async function startTraining() {
+            if (todayPlanData && todayPlanData.trackable_exercise_count === 0) {
+                alert('今天安排休息，不需要开始训练');
+                return;
+            }
+
             const restInput = getRestInput();
             const restValue = parseInt(restInput ? restInput.value : '', 10);
             const payload = {
@@ -690,8 +911,8 @@
                 });
 
                 const result = await response.json();
-                if (result.error) {
-                    alert(result.error);
+                if (!response.ok) {
+                    alert(result.error || '开始训练失败');
                     return;
                 }
 
@@ -728,6 +949,7 @@
                     restInput.value = sessionState.default_rest_seconds;
                 }
                 clearManualRest();
+                updateTrainingAvailability(todayPlanData);
                 return;
             }
 
@@ -777,20 +999,27 @@
             if (detailList) {
                 detailList.innerHTML = '';
                 const details = sessionState.details || [];
+                let hasDetails = false;
+                if (sessionState.is_combination && Array.isArray(sessionState.components) && sessionState.components.length > 1) {
+                    const comboItem = document.createElement('li');
+                    comboItem.textContent = `组合动作：${sessionState.components.join(' + ')}`;
+                    detailList.appendChild(comboItem);
+                    hasDetails = true;
+                }
                 if (details.length) {
                     details.forEach(item => {
                         const li = document.createElement('li');
                         li.textContent = item;
                         detailList.appendChild(li);
                     });
-                    detailList.style.display = 'block';
-                } else {
-                    detailList.style.display = 'none';
+                    hasDetails = true;
                 }
+                detailList.style.display = hasDetails ? 'block' : 'none';
             }
 
             document.getElementById('current-exercise-name').textContent = exerciseName;
             document.getElementById('current-set').textContent = setNumber;
+            updateTrainingAvailability(todayPlanData);
         }
 
         async function endTraining() {
@@ -820,6 +1049,7 @@
 
                 sessionState = null;
                 clearManualRest();
+                updateTrainingAvailability(todayPlanData);
                 loadTodayPlan();
                 loadTrainingHistory();
                 showTrainingSession();

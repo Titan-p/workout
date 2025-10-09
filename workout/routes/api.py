@@ -67,16 +67,16 @@ def _parse_rest_seconds(value: Any) -> Optional[int]:
         return int(trailing_minutes.group(1)) * 60
 
     total = 0
-    minute_match = re.search(r"(\d+)\s*(分钟|分|min)", normalized)
+    minute_match = re.search(r"(\d+)(分钟|分|min)", normalized)
     if minute_match:
         total += int(minute_match.group(1)) * 60
-    second_match = re.search(r"(\d+)\s*(秒|s|sec)", normalized)
+    second_match = re.search(r"(\d+)(秒|s|sec)", normalized)
     if second_match:
         total += int(second_match.group(1))
     if total:
         return total
 
-    compact = re.sub(r"[^0-9]\Z", "", normalized)
+    compact = re.sub(r"\D*\Z", "", normalized)
     compact_digits = re.fullmatch(r"\d+", compact)
     if compact_digits:
         try:
@@ -87,6 +87,73 @@ def _parse_rest_seconds(value: Any) -> Optional[int]:
     return None
 
 
+def _has_positive_number(value: str) -> bool:
+    for match in re.findall(r"\d+", value):
+        try:
+            if int(match) > 0:
+                return True
+        except ValueError:
+            continue
+    return False
+
+
+def _extract_numeric_values(value: str) -> List[float]:
+    matches = re.findall(r"\d+(?:\.\d+)?", value)
+    numbers: List[float] = []
+    for match in matches:
+        try:
+            numbers.append(float(match))
+        except ValueError:
+            continue
+    return numbers
+
+
+def _is_zero_only_row(values: List[str]) -> bool:
+    numbers: List[float] = []
+    for value in values:
+        numbers.extend(_extract_numeric_values(value))
+    return bool(numbers) and all(number == 0 for number in numbers)
+
+
+def _split_combination(name: str) -> List[str]:
+    if not name:
+        return []
+
+    normalized = name.replace("＋", "+").replace("＆", "&")
+    if "+" not in normalized and "&" not in normalized:
+        return [name.strip()]
+
+    parts: List[str] = []
+    for segment in re.split(r"\s*[+&]\s*", normalized):
+        cleaned = segment.strip()
+        if cleaned:
+            parts.append(cleaned)
+    return parts or [name.strip()]
+
+
+def _categorize_entry(name: str) -> str:
+    lowered = name.strip().lower()
+    if not lowered:
+        return "note"
+
+    rest_keywords = ("休息", "rest", "放松")
+    for keyword in rest_keywords:
+        if keyword in lowered:
+            return "rest"
+
+    log_keywords = ("完成", "记录", "总结")
+    for keyword in log_keywords:
+        if keyword in lowered:
+            return "log"
+
+    warmup_keywords = ("热身", "拉伸", "激活", "准备", "梳理", "升温", "技术性")
+    for keyword in warmup_keywords:
+        if keyword in lowered:
+            return "warmup"
+
+    return "exercise"
+
+
 def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
     if plan is None:
         return {
@@ -94,6 +161,9 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
             "remarks": remarks or [],
             "exercises": [],
             "default_rest_seconds": None,
+            "trackable_exercise_count": 0,
+            "note_exercise_count": 0,
+            "is_rest_day": True,
         }
 
     plan = plan.fillna("")
@@ -108,16 +178,25 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
             continue
 
         exercise = values[0] or f"未命名动作{idx}"
+        if _is_zero_only_row(values[1:]):
+            logger.debug("Skipping zero-only row for exercise %s", exercise)
+            continue
+
+        components = _split_combination(exercise)
+        is_combination = len(components) > 1
+        if not is_combination:
+            components = []
         details = []
         target_sets: Optional[int] = None
         target_reps: Optional[int] = None
         target_weight: Optional[str] = None
         target_rest_seconds: Optional[int] = None
 
-        for header, value in zip(headers, values):
+        for idx, (header, value) in enumerate(zip(headers, values)):
             if not value:
                 continue
-            details.append(f"{header}: {value}")
+            if idx != 0:
+                details.append(f"{header}: {value}")
             lowered = header.lower()
             pair = _extract_set_rep_pair(value)
             if ("组" in header or "set" in lowered) and target_sets is None:
@@ -140,6 +219,11 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
                 if parsed_rest is not None:
                     target_rest_seconds = parsed_rest
 
+        if target_sets == 0:
+            target_sets = None
+        if target_reps == 0:
+            target_reps = None
+
         if target_rest_seconds is None:
             for value in values[1:]:
                 parsed_rest = _parse_rest_seconds(value)
@@ -147,32 +231,62 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
                     target_rest_seconds = parsed_rest
                     break
 
-        # Fallbacks: count non-empty columns beyond the exercise name
-        if target_sets is None:
-            non_empty_columns = [value for value in values[1:] if value]
-            if non_empty_columns:
-                target_sets = len(non_empty_columns)
+        category = _categorize_entry(exercise)
+        has_positive_numbers = any(
+            _has_positive_number(str(value)) for value in values[1:]
+        )
+
+        is_trackable = (
+            category == "exercise"
+            and (
+                (target_sets is not None and target_sets > 0)
+                or (target_reps is not None and target_reps > 0)
+                or has_positive_numbers
+            )
+        )
+
+        if not is_trackable:
+            if category == "exercise":
+                category = "note"
+            target_sets = None
+            target_reps = None
+            target_rest_seconds = None
 
         exercises.append(
             {
                 "exercise_name": exercise,
                 "phase": phase,
+                "components": components,
+                "primary_component": components[0] if components else exercise,
+                "is_combination": is_combination,
                 "target_sets": target_sets,
                 "target_reps": target_reps,
                 "target_weight": target_weight,
                 "target_rest_seconds": target_rest_seconds,
                 "details": details,
+                "is_trackable": is_trackable,
+                "category": category,
             }
         )
 
-        if default_rest_seconds is None and target_rest_seconds is not None:
+        if (
+            default_rest_seconds is None
+            and is_trackable
+            and target_rest_seconds is not None
+        ):
             default_rest_seconds = target_rest_seconds
+
+    trackable_count = sum(1 for entry in exercises if entry.get("is_trackable"))
+    note_count = len(exercises) - trackable_count
 
     return {
         "phase": phase,
         "remarks": remarks or [],
         "exercises": exercises,
         "default_rest_seconds": default_rest_seconds,
+        "trackable_exercise_count": trackable_count,
+        "note_exercise_count": note_count,
+        "is_rest_day": trackable_count == 0,
     }
 
 
@@ -186,6 +300,8 @@ def _determine_next_step(plan_summary: Dict[str, Any], logs) -> Optional[Dict[st
         counts[log.exercise] = max(counts[log.exercise], log.set_number)
 
     for entry in exercises:
+        if not entry.get("is_trackable", True):
+            continue
         exercise = entry["exercise_name"]
         goal_sets = entry.get("target_sets")
         logged = counts.get(exercise, 0)
@@ -199,6 +315,9 @@ def _determine_next_step(plan_summary: Dict[str, Any], logs) -> Optional[Dict[st
                 "target_weight": entry.get("target_weight"),
                 "target_rest_seconds": entry.get("target_rest_seconds"),
                 "details": entry.get("details", []),
+                "is_combination": entry.get("is_combination", False),
+                "components": entry.get("components", []),
+                "primary_component": entry.get("primary_component"),
             }
 
     return None
@@ -231,8 +350,15 @@ def _build_session_payload(
                 "target_weight": next_step["target_weight"],
                 "target_rest_seconds": next_step.get("target_rest_seconds"),
                 "details": next_step["details"],
+                "is_combination": next_step.get("is_combination", False),
+                "components": next_step.get("components", []),
+                "primary_component": next_step.get("primary_component"),
             }
         )
+
+    payload.setdefault("is_combination", False)
+    payload.setdefault("components", [])
+    payload.setdefault("primary_component", None)
 
     return payload
 
@@ -350,6 +476,14 @@ def start_training():
     phase, remarks, plan = get_plan_for_date(date_str)
     plan_summary = _summarise_plan(plan, phase, remarks)
 
+    trackable = [
+        entry
+        for entry in plan_summary.get("exercises", [])
+        if entry.get("is_trackable", True)
+    ]
+    if not trackable:
+        return jsonify({"error": "今天没有需要记录的训练项目"}), 400
+
     rest_value = payload.get("rest_interval_seconds")
     if rest_value in (None, "", 0):
         rest_interval = plan_summary.get("default_rest_seconds") or 90
@@ -451,6 +585,9 @@ def next_set():
             "target_weight": next_step["target_weight"],
             "target_rest_seconds": next_step.get("target_rest_seconds"),
             "details": next_step["details"],
+            "is_combination": next_step.get("is_combination", False),
+            "components": next_step.get("components", []),
+            "primary_component": next_step.get("primary_component"),
             "rest_seconds": rest_seconds,
             "rest_end_time": _to_iso(rest_finish),
             "session": updated_session.to_dict(),
