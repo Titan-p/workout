@@ -1,0 +1,6 @@
+Flask
+pandas
+openpyxl
+gunicorn
+supabase==2.0.3
+python-dotenv

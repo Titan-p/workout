@@ -16,10 +16,12 @@ def seed_plan(supabase_stub, date_str: str):
     )
 
 
-def test_index_renders(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "休息日" in response.text
+def test_plan_endpoint_returns_not_found_for_missing_date(client):
+    response = client.get("/api/plans/1999-01-01")
+    assert response.status_code == 404
+    payload = response.get_json()
+    assert payload["date"] == "1999-01-01"
+    assert payload["has_plan"] is False
 
 
 def test_today_plan_summary(client, supabase_stub):
@@ -168,13 +170,21 @@ def test_plan_filters_zero_only_rows_and_detects_combination(client, supabase_st
     names = [entry["exercise_name"] for entry in payload["exercises"]]
     assert "助跑跳箱/扣矮框" not in names
 
-    combination = next(entry for entry in payload["exercises"] if entry["exercise_name"] == "垫铃高拉+短触地跌落跳")
+    combination = next(
+        entry
+        for entry in payload["exercises"]
+        if entry["exercise_name"] == "垫铃高拉+短触地跌落跳"
+    )
     assert combination["is_trackable"] is True
     assert combination["is_combination"] is True
     assert combination["components"] == ["垫铃高拉", "短触地跌落跳"]
     assert combination["primary_component"] == "垫铃高拉"
-            assert combination["target_rest_seconds"] == 180
-    warmup = next(entry for entry in payload["exercises"] if entry["exercise_name"] == "筋膜梳理、静态拉伸")
+    assert combination["target_rest_seconds"] == 180
+    warmup = next(
+        entry
+        for entry in payload["exercises"]
+        if entry["exercise_name"] == "筋膜梳理、静态拉伸"
+    )
     assert warmup["is_trackable"] is False
     assert warmup["category"] == "warmup"
 

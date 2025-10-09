@@ -8,7 +8,7 @@ import pytest
 os.environ.setdefault("SUPABASE_URL", "http://test.supabase.local")
 os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-key")
 
-from workout import create_app
+from backend.workout import create_app
 
 
 class QueryBuilder:

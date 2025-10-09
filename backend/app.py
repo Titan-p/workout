@@ -1,4 +1,4 @@
-from backend.workout import create_app
+from workout import create_app
 
 app = create_app()
 

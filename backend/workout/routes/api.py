@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from ..services import (
     TrainingSessionService,
@@ -14,7 +14,6 @@ from ..services import (
     get_week_plans,
     import_excel_to_db,
 )
-from .web import allowed_file
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +130,11 @@ def _split_combination(name: str) -> List[str]:
     return parts or [name.strip()]
 
 
+def _allowed_file(filename: str) -> bool:
+    allowed_types = current_app.config.get("ALLOWED_EXTENSIONS", set())
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_types
+
+
 def _categorize_entry(name: str) -> str:
     lowered = name.strip().lower()
     if not lowered:
@@ -205,7 +209,13 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
                 target_reps = _extract_number(value)
             if ("重" in header or "kg" in lowered) and target_weight is None:
                 target_weight = value
-            if target_rest_seconds is None and ("休息" in header or "间隔" in header or "rest" in lowered):
+            if target_rest_seconds is None and (
+                "休息" in header
+                or "间隔" in header
+                or "间歇" in header
+                or "歇" in header
+                or "rest" in lowered
+            ):
                 parsed_rest = _parse_rest_seconds(value)
                 if parsed_rest is not None:
                     target_rest_seconds = parsed_rest
@@ -680,7 +690,7 @@ def upload_plan():
     if not file or file.filename == "":
         return jsonify({"error": "未选择文件"}), 400
 
-    if not allowed_file(file.filename):
+    if not _allowed_file(file.filename):
         return jsonify({"error": "文件类型不支持，仅支持 .xlsx"}), 400
 
     file.seek(0, 2)

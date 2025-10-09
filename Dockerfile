@@ -5,7 +5,7 @@ FROM python:3.12-slim-bullseye AS builder
 WORKDIR /app
 
 # 只复制必要的文件
-COPY requirements.txt .
+COPY backend/requirements.txt ./requirements.txt
 
 # 安装依赖并清理缓存
 RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
@@ -23,8 +23,8 @@ RUN pip install --no-cache-dir gunicorn
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 
 # 复制应用程序文件
-COPY app.py .
-COPY templates ./templates
+COPY app.py ./
+COPY backend ./backend
 
 # 暴露端口
 EXPOSE 8088
