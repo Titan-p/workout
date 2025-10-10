@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "vercel-build": "vite build --outDir frontend/dist"
+    "vercel-build": "vite build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.55.4",
