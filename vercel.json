@@ -10,7 +10,8 @@
       "use": "@vercel/static-build",
       "config": {
         "distDir": "dist"
-      }
+      },
+      "outputDirectory": "frontend/dist"
     }
   ],
   "routes": [
