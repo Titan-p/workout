@@ -21,7 +21,25 @@ def import_excel_to_db(file) -> bool:
             logger.warning("未找到包含'阶段'的工作表")
             return False
 
-        logger.info("找到 %d 个有效工作表: %s", len(valid_sheets), valid_sheets)
+        sheet_phase_pairs: List[Tuple[str, int]] = []
+        for sheet in valid_sheets:
+            digits = "".join(filter(str.isdigit, sheet))
+            if not digits:
+                logger.warning("工作表 %s 无法提取阶段数字，跳过", sheet)
+                continue
+            sheet_phase_pairs.append((sheet, int(digits)))
+
+        if not sheet_phase_pairs:
+            logger.warning("有效工作表缺少阶段数字，无法导入")
+            return False
+
+        eligible_pairs = [pair for pair in sheet_phase_pairs if pair[1] >= 14]
+        target_pairs = eligible_pairs or sheet_phase_pairs
+        latest_phase = max(pair[1] for pair in target_pairs)
+        target_pairs = [pair for pair in target_pairs if pair[1] == latest_phase]
+
+        target_sheets = [pair[0] for pair in target_pairs]
+        logger.info("仅导入最新阶段 %d 的计划，工作表: %s", latest_phase, target_sheets)
 
         delete_result = supabase.table("workout_plans").delete().gt("id", 0).execute()
         deleted_rows = len(delete_result.data) if delete_result.data else 0
@@ -30,18 +48,8 @@ def import_excel_to_db(file) -> bool:
         bulk_insert_data: List[Dict[str, Any]] = []
         processed_count = 0
 
-        for sheet_name in valid_sheets:
+        for sheet_name, phase_num in target_pairs:
             try:
-                phase_num_match = "".join(filter(str.isdigit, sheet_name))
-                if not phase_num_match:
-                    logger.warning("工作表 %s 无法提取阶段数字，跳过", sheet_name)
-                    continue
-
-                phase_num = int(phase_num_match)
-                if phase_num < 14:
-                    logger.info("跳过阶段 %d (小于14)", phase_num)
-                    continue
-
                 df = pd.read_excel(file, sheet_name=sheet_name, header=None)
                 logger.info("处理工作表: %s (阶段 %d), 数据行数: %d", sheet_name, phase_num, len(df))
 
