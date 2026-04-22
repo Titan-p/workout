@@ -48,6 +48,11 @@ def _extract_set_rep_pair(value: Any) -> Optional[tuple[int, int]]:
     return None
 
 
+def _is_rest_header(header: str) -> bool:
+    lowered = header.lower()
+    return any(token in lowered for token in ("休息", "间隔", "间歇", "rest"))
+
+
 def _parse_rest_seconds(value: Any) -> Optional[int]:
     if value is None:
         return None
@@ -73,7 +78,7 @@ def _parse_rest_seconds(value: Any) -> Optional[int]:
     second_match = re.search(r"(\d+)(秒|s|sec)", normalized)
     if second_match:
         total += int(second_match.group(1))
-    if total:
+    if minute_match or second_match:
         return total
 
     compact = re.sub(r"\D*\Z", "", normalized)
@@ -205,7 +210,7 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
                 target_reps = _extract_number(value)
             if ("重" in header or "kg" in lowered) and target_weight is None:
                 target_weight = value
-            if target_rest_seconds is None and ("休息" in header or "间隔" in header or "rest" in lowered):
+            if target_rest_seconds is None and _is_rest_header(header):
                 parsed_rest = _parse_rest_seconds(value)
                 if parsed_rest is not None:
                     target_rest_seconds = parsed_rest
@@ -225,7 +230,9 @@ def _summarise_plan(plan, phase: Optional[str], remarks: Optional[List[str]]):
             target_reps = None
 
         if target_rest_seconds is None:
-            for value in values[1:]:
+            for header, value in zip(headers[1:], values[1:]):
+                if not (_is_rest_header(header) or re.search(r"(分钟|分|min|秒|sec|:)", value.lower())):
+                    continue
                 parsed_rest = _parse_rest_seconds(value)
                 if parsed_rest is not None:
                     target_rest_seconds = parsed_rest
@@ -485,10 +492,15 @@ def start_training():
         return jsonify({"error": "今天没有需要记录的训练项目"}), 400
 
     rest_value = payload.get("rest_interval_seconds")
-    if rest_value in (None, "", 0):
-        rest_interval = plan_summary.get("default_rest_seconds") or 90
-    else:
-        rest_interval = int(rest_value)
+    try:
+        rest_interval = int(rest_value) if rest_value not in (None, "") else None
+    except (TypeError, ValueError):
+        rest_interval = None
+
+    if rest_interval is None:
+        rest_interval = plan_summary.get("default_rest_seconds")
+    if rest_interval is None:
+        rest_interval = 90
 
     service = TrainingSessionService()
     session = service.start_session(date_str, rest_interval_seconds=rest_interval)
@@ -541,7 +553,12 @@ def next_set():
         manual_rest = None
 
     selected_rest = next_step.get("target_rest_seconds") if next_step else None
-    effective_rest = manual_rest or selected_rest or session.rest_interval_seconds
+    if manual_rest is not None:
+        effective_rest = manual_rest
+    elif selected_rest is not None:
+        effective_rest = selected_rest
+    else:
+        effective_rest = session.rest_interval_seconds
 
     try:
         log = service.record_set(
@@ -573,7 +590,8 @@ def next_set():
             }
         )
 
-    rest_seconds = next_step.get("target_rest_seconds") or updated_session.rest_interval_seconds
+    next_rest = next_step.get("target_rest_seconds")
+    rest_seconds = next_rest if next_rest is not None else updated_session.rest_interval_seconds
     rest_finish = service.rest_finishes_at(rest_seconds)
     return jsonify(
         {

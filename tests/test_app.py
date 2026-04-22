@@ -173,7 +173,7 @@ def test_plan_filters_zero_only_rows_and_detects_combination(client, supabase_st
     assert combination["is_combination"] is True
     assert combination["components"] == ["垫铃高拉", "短触地跌落跳"]
     assert combination["primary_component"] == "垫铃高拉"
-            assert combination["target_rest_seconds"] == 180
+    assert combination["target_rest_seconds"] == 180
     warmup = next(entry for entry in payload["exercises"] if entry["exercise_name"] == "筋膜梳理、静态拉伸")
     assert warmup["is_trackable"] is False
     assert warmup["category"] == "warmup"
@@ -188,3 +188,37 @@ def test_plan_filters_zero_only_rows_and_detects_combination(client, supabase_st
     assert session_payload["is_combination"] is True
     assert session_payload["components"] == ["垫铃高拉", "短触地跌落跳"]
     assert session_payload["primary_component"] == "垫铃高拉"
+
+
+def test_zero_rest_is_preserved(client, supabase_stub):
+    today = datetime.now().strftime("%Y-%m-%d")
+    supabase_stub.seed(
+        "workout_plans",
+        [
+            {
+                "date": today,
+                "phase": "第30阶段",
+                "headers": ["动作", "组数", "次数", "重量", "组间歇"],
+                "plan_data": [
+                    ["助跑上箱", "3", "3", "", "0秒"],
+                    ["上肢训练", "3", "10", "", "180秒"],
+                ],
+                "remarks": [],
+            }
+        ],
+    )
+
+    payload = client.get(f"/api/today-plan?date={today}").get_json()
+    assert payload["exercises"][0]["target_rest_seconds"] == 0
+
+    start_resp = client.post("/api/start-training", json={"date": today})
+    assert start_resp.status_code == 200
+    session_payload = start_resp.get_json()
+    assert session_payload["target_rest_seconds"] == 0
+
+    next_set_payload = client.post(
+        "/api/next-set",
+        json={"session_id": session_payload["session"]["session_id"], "actual_reps": 3},
+    ).get_json()
+    assert next_set_payload["status"] == "rest"
+    assert next_set_payload["rest_seconds"] == 0

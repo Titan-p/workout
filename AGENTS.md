@@ -3,6 +3,7 @@
 ## Project Structure & Module Organization
 - `app.py`: Flask app with routes for `/`, `/upload`, `/week`; imports Excel and saves to Supabase.
 - `templates/`: Jinja templates (`index.html`, `week.html`, `upload.html`).
+- `scripts/upload_workout_plans.py`: Pull the latest Kdocs workout sheet locally and replace `workout_plans` in Supabase.
 - `requirements.txt`: Python runtime dependencies.
 - `Dockerfile`: Production image (gunicorn on port `8088`).
 - `.env.example`: Example env; copy to `.env` for local use.
@@ -14,6 +15,7 @@
 - Install: `pip install -r requirements.txt`
 - Run (dev): `python app.py` (Flask debug)
 - Run (prod-like): `gunicorn --bind 0.0.0.0:8088 app:app`
+- Sync workout plans from Kdocs: `python3 scripts/upload_workout_plans.py --env-file .env`
 - Docker: `docker build -t workout:local . && docker run --env-file .env -p 8088:8088 workout:local`
 
 ## Coding Style & Naming Conventions
@@ -35,7 +37,7 @@
 
 ## Security & Configuration Tips
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`; optional `FLASK_SECRET_KEY`.
-- Note: `.env.example` may not include `SUPABASE_SERVICE_ROLE_KEY`—add it locally.
+- Local Kdocs sync expects `KDOCS_WORKOUT_FILE_ID`; `KDOCS_CLI_BIN` is optional when `kdocs-cli` is already on PATH.
 - Supabase table `workout_plans`: `date` (YYYY-MM-DD), JSON `headers`, `remarks`, `plan_data`.
 - New training feature expects Supabase tables `training_sessions` and `training_sets`; see `docs/training_schema.sql` for DDL.
 - Never commit secrets; use GitHub Actions secrets for CI.
