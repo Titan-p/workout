@@ -7,802 +7,702 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="周计划">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="一周训练计划总览 - 科学健身管理系统">
-    <title>周训练计划 - 科学训练管理</title>
+    <meta name="theme-color" content="#181512">
+    <meta name="description" content="一周训练排班板，强调连续节奏、训练密度和按天进入训练。">
+    <title>周训练计划 - 排班板</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Serif+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2563eb;
-            --secondary-color: #64748b;
-            --success-color: #059669;
-            --warning-color: #d97706;
-            --danger-color: #dc2626;
-            --background-color: #f8fafc;
-            --card-background: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --exercise-day: #f0fdf4;
-            --rest-day: #fef2f2;
+            --bg: #f0e6d3;
+            --bg-deep: #d5c097;
+            --panel: rgba(255, 250, 242, 0.9);
+            --panel-strong: #fffaf2;
+            --ink: #181512;
+            --muted: #675b4b;
+            --line: rgba(24, 21, 18, 0.1);
+            --accent: #e35a2d;
+            --accent-dark: #9f2f12;
+            --success: #2d7f5f;
+            --danger: #bf5a44;
+            --warning: #b97e1f;
+            --shadow: 0 28px 68px rgba(73, 47, 15, 0.12);
+            --shadow-soft: 0 16px 30px rgba(73, 47, 15, 0.08);
+            --display-font: "Barlow Condensed", sans-serif;
+            --body-font: "Noto Serif SC", serif;
         }
 
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Performance optimizations */
-        .container, .day-card, .nav-btn, .btn, .stat-item {
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            -webkit-perspective: 1000px;
-            perspective: 1000px;
-        }
-
-        /* Reduce motion for users who prefer it */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: var(--card-background);
-            border-radius: 16px;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-            padding: 1.5rem 1.25rem;
-            text-align: center;
+            padding: 24px;
+            color: var(--ink);
+            font-family: var(--body-font);
+            background:
+                radial-gradient(circle at 14% 10%, rgba(255, 242, 214, 0.92), transparent 26%),
+                radial-gradient(circle at 82% 16%, rgba(227, 90, 45, 0.12), transparent 20%),
+                linear-gradient(150deg, #f2eadb 0%, #e7d8be 52%, #d7c199 100%);
             position: relative;
+            overflow-x: hidden;
         }
 
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-        }
-
-        .header .subtitle {
-            font-size: 1rem;
-            opacity: 0.9;
-            margin-bottom: 1rem;
-        }
-
-        .week-navigation {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 2rem;
-            margin-top: 1rem;
-        }
-
-        .week-info {
-            background: rgba(255,255,255,0.2);
-            padding: 0.75rem 1.5rem;
-            border-radius: 20px;
-            font-weight: 600;
-        }
-
-        .nav-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .nav-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-        }
-
-        .nav-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .week-stats {
-            background: var(--background-color);
-            padding: 0.75rem 1.5rem;
-            text-align: center;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 0.75rem;
-            max-width: 500px;
-            margin: 0 auto;
-        }
-
-        .stat-item {
-            background: white;
-            padding: 0.75rem 0.5rem;
-            border-radius: 6px;
-            box-shadow: var(--shadow);
-        }
-
-        .stat-number {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-        }
-
-        .content {
-            padding: 1.5rem;
-        }
-
-        .week-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .day-card {
-            background: var(--card-background);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 1.25rem;
-            box-shadow: var(--shadow);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .day-card:hover {
-            box-shadow: var(--shadow-lg);
-            transform: translateY(-4px);
-            border-color: var(--primary-color);
-        }
-
-        .day-card.exercise-day {
-            background: var(--exercise-day);
-            border-color: var(--success-color);
-        }
-
-        .day-card.rest-day {
-            background: var(--rest-day);
-            border-color: var(--danger-color);
-            opacity: 0.8;
-        }
-
-        .day-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .day-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .day-date {
-            color: var(--text-secondary);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        .day-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .badge-exercise {
-            background: var(--success-color);
-            color: white;
-        }
-
-        .badge-rest {
-            background: var(--danger-color);
-            color: white;
-        }
-
-        .phase-info {
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-left: 3px solid var(--primary-color);
-            padding: 0.75rem 1rem;
-            border-radius: 6px;
-            margin-bottom: 0.75rem;
-        }
-
-        .phase-title {
-            font-weight: 600;
-            color: var(--primary-color);
-            margin-bottom: 0.25rem;
-            font-size: 0.95rem;
-        }
-
-        .remarks-section {
-            margin-bottom: 0.75rem;
-        }
-
-        .remarks-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--warning-color);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .remarks-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .remarks-list li {
-            padding: 0.3rem 0;
-            border-bottom: 1px solid #f3f4f6;
-            display: flex;
-            align-items: center;
-            gap: 0.4rem;
-            font-size: 0.9rem;
-        }
-
-        .remarks-list li:last-child {
-            border-bottom: none;
-        }
-
-        .remarks-list li::before {
-            content: "💡";
-            font-size: 1rem;
-        }
-
-        .plan-section {
-            margin-top: 0.75rem;
-        }
-
-        .plan-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--success-color);
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .custom-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 0.75rem;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
-            font-size: 0.95rem;
-        }
-
-        .custom-table th {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-            padding: 0.7rem 0.5rem;
-            text-align: center;
-            font-weight: 600;
-            border: none;
-            font-size: 0.9rem;
-            letter-spacing: 0.5px;
-        }
-
-        .custom-table td {
-            padding: 0.75rem 0.6rem;
-            text-align: center;
-            border-bottom: 1px solid #f3f4f6;
-            transition: all 0.2s ease;
-            font-size: 0.95rem;
-            line-height: 1.4;
-        }
-
-        .custom-table tr:hover td {
-            background-color: #f8fafc;
-        }
-
-        .custom-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .empty-day {
-            text-align: center;
-            padding: 2rem;
-            color: var(--text-secondary);
-            opacity: 0.7;
-        }
-
-        .empty-day i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .empty-day h4 {
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .controls {
-            text-align: center;
-            padding-top: 2rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(24, 21, 18, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(24, 21, 18, 0.025) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.36;
+            pointer-events: none;
         }
 
         .flash-messages {
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 20;
+            display: grid;
+            gap: 10px;
+            max-width: 320px;
         }
 
         .flash-message {
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            box-shadow: var(--shadow);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            animation: slideIn 0.3s ease;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-soft);
+            animation: slide-in 0.35s ease;
         }
 
         .flash-message.success {
-            background: var(--success-color);
-            color: white;
+            background: rgba(45, 127, 95, 0.92);
+            color: #fff;
         }
 
         .flash-message.error {
-            background: var(--danger-color);
-            color: white;
+            background: rgba(191, 90, 68, 0.94);
+            color: #fff;
         }
 
-        @keyframes slideIn {
+        .board {
+            max-width: 1380px;
+            margin: 0 auto;
+            background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(255, 247, 236, 0.92));
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            border-radius: 34px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .board::before {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 28px;
+            pointer-events: none;
+        }
+
+        .hero {
+            position: relative;
+            padding: 34px 36px 30px;
+            color: #f9f0e2;
+            background:
+                linear-gradient(120deg, rgba(255,255,255,0.18), transparent 45%),
+                linear-gradient(145deg, #181512 0%, #261d15 52%, #3b281a 100%);
+        }
+
+        .hero-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.95fr);
+            gap: 26px;
+            align-items: end;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(255,255,255,0.08);
+            font-size: 0.78rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .hero-title {
+            font-size: clamp(2.2rem, 4.8vw, 4.4rem);
+            line-height: 1.03;
+            letter-spacing: -0.05em;
+            margin-bottom: 12px;
+            max-width: 10ch;
+        }
+
+        .hero-subtitle {
+            max-width: 56ch;
+            color: rgba(249, 240, 226, 0.74);
+            line-height: 1.8;
+        }
+
+        .week-panel {
+            padding: 24px 22px;
+            border-radius: 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(12px);
+            position: relative;
+        }
+
+        .week-panel::after {
+            content: "";
+            position: absolute;
+            right: 22px;
+            top: 22px;
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            box-shadow: 0 18px 30px rgba(227, 90, 45, 0.24);
+        }
+
+        .week-panel-label {
+            display: block;
+            font-size: 0.8rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(249, 240, 226, 0.58);
+            margin-bottom: 8px;
+        }
+
+        .week-panel-value {
+            font-family: var(--display-font);
+            font-size: clamp(2.8rem, 6vw, 5rem);
+            line-height: 0.92;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        .week-panel-note {
+            color: rgba(249, 240, 226, 0.72);
+            line-height: 1.75;
+            max-width: 24ch;
+        }
+
+        .hero-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 36px 10px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.52), rgba(255,255,255,0));
+        }
+
+        .nav-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-width: 160px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            text-decoration: none;
+            border: 1px solid rgba(24, 21, 18, 0.1);
+            background: rgba(255, 252, 246, 0.9);
+            color: var(--ink);
+            transition: transform 0.24s ease, background 0.24s ease, border-color 0.24s ease;
+        }
+
+        .nav-btn:hover {
+            transform: translateY(-3px);
+            border-color: rgba(227, 90, 45, 0.24);
+        }
+
+        .nav-btn.is-hidden {
+            visibility: hidden;
+        }
+
+        .week-info {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255,255,255,0.74);
+            font-family: var(--display-font);
+            font-size: 1.4rem;
+            letter-spacing: 0.04em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            padding: 22px 36px 0;
+        }
+
+        .stat-card {
+            position: relative;
+            min-height: 118px;
+            padding: 22px;
+            background: var(--panel);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 24px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: "";
+            position: absolute;
+            right: -16px;
+            top: -18px;
+            width: 82px;
+            height: 82px;
+            border-radius: 26px;
+            background: rgba(227, 90, 45, 0.08);
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.82rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .stat-number {
+            font-family: var(--display-font);
+            font-size: clamp(2.2rem, 3vw, 3rem);
+            line-height: 0.95;
+            margin-bottom: 8px;
+        }
+
+        .stat-note {
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 0.94rem;
+        }
+
+        .content {
+            padding: 24px 36px 36px;
+        }
+
+        .week-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 18px;
+        }
+
+        .day-card {
+            position: relative;
+            padding: 22px;
+            background: var(--panel);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 28px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+            transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+        }
+
+        .day-card::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 6px;
+            background: rgba(24, 21, 18, 0.08);
+        }
+
+        .day-card.exercise-day::before {
+            background: linear-gradient(180deg, var(--accent), rgba(227, 90, 45, 0.3));
+        }
+
+        .day-card.rest-day::before {
+            background: linear-gradient(180deg, var(--success), rgba(45, 127, 95, 0.24));
+        }
+
+        .day-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(227, 90, 45, 0.2);
+            box-shadow: 0 24px 38px rgba(73, 47, 15, 0.12);
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .day-title {
+            font-size: 1.45rem;
+            margin-bottom: 4px;
+            letter-spacing: -0.03em;
+        }
+
+        .day-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .day-link:hover {
+            color: var(--accent-dark);
+        }
+
+        .day-date {
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        .day-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 92px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            font-family: var(--display-font);
+            font-size: 1rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .badge-exercise {
+            background: rgba(227, 90, 45, 0.12);
+            color: var(--accent-dark);
+        }
+
+        .badge-rest {
+            background: rgba(45, 127, 95, 0.12);
+            color: var(--success);
+        }
+
+        .phase-info {
+            margin-bottom: 14px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.52);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+        }
+
+        .phase-title {
+            font-size: 1.02rem;
+            line-height: 1.7;
+        }
+
+        .remarks-section {
+            margin-bottom: 16px;
+        }
+
+        .remarks-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1rem;
+            color: var(--warning);
+            margin-bottom: 10px;
+        }
+
+        .remarks-list {
+            list-style: none;
+            display: grid;
+            gap: 8px;
+        }
+
+        .remarks-list li {
+            position: relative;
+            padding-left: 16px;
+            color: var(--muted);
+            font-size: 0.94rem;
+            line-height: 1.75;
+        }
+
+        .remarks-list li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.84em;
+            width: 5px;
+            height: 5px;
+            border-radius: 999px;
+            background: var(--warning);
+        }
+
+        .plan-section {
+            padding: 16px;
+            border-radius: 22px;
+            background: rgba(255, 253, 250, 0.92);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+        }
+
+        .plan-mobile-list {
+            display: none;
+        }
+
+        .plan-mobile-card {
+            display: grid;
+            gap: 10px;
+            padding: 14px 14px 12px;
+            border-radius: 16px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 255, 255, 0.84);
+            margin-bottom: 10px;
+        }
+
+        .plan-mobile-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .plan-mobile-name {
+            color: var(--ink);
+            font-size: 1rem;
+            line-height: 1.45;
+        }
+
+        .plan-mobile-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .plan-mobile-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(227, 90, 45, 0.08);
+            color: var(--accent-dark);
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
+
+        .plan-mobile-pill strong {
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .plan-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            margin-bottom: 12px;
+        }
+
+        .day-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.86);
+        }
+
+        .custom-table thead tr {
+            background: linear-gradient(135deg, #211b15 0%, #342619 100%);
+        }
+
+        .custom-table th {
+            padding: 12px 14px;
+            color: rgba(255, 245, 230, 0.95);
+            text-align: left;
+            font-size: 0.82rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .custom-table td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(24, 21, 18, 0.08);
+            font-size: 0.96rem;
+            line-height: 1.65;
+            color: #2c251d;
+        }
+
+        .custom-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .custom-table tbody tr:hover td {
+            background: rgba(227, 90, 45, 0.04);
+        }
+
+        .empty-day {
+            padding: 16px 0 4px;
+            text-align: center;
+        }
+
+        .empty-day i {
+            font-size: 2.8rem;
+            color: rgba(45, 127, 95, 0.34);
+            margin-bottom: 12px;
+        }
+
+        .empty-day h4 {
+            font-size: 1.3rem;
+            margin-bottom: 8px;
+        }
+
+        .empty-day p {
+            color: var(--muted);
+            line-height: 1.75;
+        }
+
+        .controls {
+            padding-top: 26px;
+            text-align: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: 18px;
+            text-decoration: none;
+            transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+            border: 1px solid transparent;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent), #f28d55);
+            color: #fff8f0;
+            box-shadow: 0 18px 24px rgba(227, 90, 45, 0.16);
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            color: var(--ink);
+            border-color: rgba(24, 21, 18, 0.1);
+        }
+
+        @keyframes slide-in {
             from {
-                transform: translateX(100%);
                 opacity: 0;
+                transform: translateY(-8px);
             }
             to {
-                transform: translateX(0);
                 opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 8px;
-                background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            }
-
-            .container {
-                border-radius: 12px;
-                margin: 0;
-                max-width: 100%;
-            }
-
-            .header {
-                padding: 1.5rem 1rem;
-            }
-
-            .header h1 {
-                font-size: 1.8rem;
-                margin-bottom: 0.25rem;
-            }
-
-            .header .subtitle {
-                font-size: 0.95rem;
-                margin-bottom: 1rem;
-            }
-
-            .week-navigation {
-                flex-direction: column;
-                gap: 1rem;
-                margin-top: 0.75rem;
-            }
-
-            .week-info {
-                padding: 0.5rem 1rem;
-                font-size: 1rem;
-            }
-
-            .nav-btn {
-                padding: 0.5rem 1rem;
-                font-size: 0.9rem;
-                width: 100%;
-                justify-content: center;
-            }
-
-            .content {
-                padding: 1rem;
-            }
-
-            .week-stats {
-                padding: 0.75rem 1rem;
-            }
-
+        @media (max-width: 980px) {
+            .hero-grid,
             .stats-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 0.5rem;
-            }
-
-            .stat-item {
-                padding: 0.75rem 0.5rem;
-            }
-
-            .stat-number {
-                font-size: 1.2rem;
-            }
-
-            .stat-label {
-                font-size: 0.8rem;
-            }
-
-            .week-container {
                 grid-template-columns: 1fr;
-                gap: 1rem;
             }
 
-            .day-card {
-                padding: 1rem;
-                border-width: 1px;
+            .hero-title {
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 12px;
             }
 
-            .day-header {
-                margin-bottom: 0.75rem;
-                padding-bottom: 0.75rem;
+            .board {
+                border-radius: 24px;
             }
 
-            .day-title {
-                font-size: 1.1rem;
+            .board::before {
+                inset: 10px;
+                border-radius: 18px;
             }
 
-            .day-date {
-                font-size: 0.85rem;
+            .hero,
+            .hero-controls,
+            .stats-grid,
+            .content {
+                padding-left: 18px;
+                padding-right: 18px;
             }
 
-            .day-badge {
-                padding: 0.2rem 0.5rem;
-                font-size: 0.7rem;
+            .hero {
+                padding-top: 24px;
             }
 
-            .phase-info {
-                padding: 0.75rem;
-                margin-bottom: 0.75rem;
+            .hero-controls {
+                flex-direction: column;
             }
 
-            .phase-title {
-                font-size: 0.9rem;
-                margin-bottom: 0.25rem;
-            }
-
-            .remarks-section {
-                margin-bottom: 0.75rem;
-            }
-
-            .remarks-title {
-                font-size: 1rem;
-                margin-bottom: 0.5rem;
-            }
-
-            .remarks-list li {
-                padding: 0.4rem 0;
-                font-size: 0.85rem;
-            }
-
-            .plan-section {
-                margin-top: 0.75rem;
-            }
-
-            .plan-title {
-                font-size: 1rem;
-                margin-bottom: 0.5rem;
+            .nav-btn,
+            .week-info,
+            .btn-primary {
+                width: 100%;
             }
 
             .custom-table {
-                font-size: 0.75rem;
+                display: none;
+            }
+
+            .plan-mobile-list {
                 display: block;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                white-space: nowrap;
             }
 
-            .custom-table th {
-                padding: 0.5rem 0.4rem;
-                font-size: 0.75rem;
-            }
-
-            .custom-table td {
-                padding: 0.4rem 0.3rem;
-            }
-
-            .empty-day {
-                padding: 1.5rem;
-            }
-
-            .empty-day i {
-                font-size: 2.5rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .empty-day h4 {
-                font-size: 1.1rem;
-                margin-bottom: 0.4rem;
-            }
-
-            .empty-day p {
-                font-size: 0.85rem;
-            }
-
-            .controls {
-                padding-top: 1.5rem;
-            }
-
-            .btn {
-                padding: 0.6rem 1.2rem;
-                font-size: 0.9rem;
-                width: 100%;
-                justify-content: center;
+            .day-actions {
+                grid-template-columns: 1fr;
             }
 
             .flash-messages {
-                top: 10px;
-                right: 10px;
-                left: 10px;
-            }
-
-            .flash-message {
-                font-size: 0.85rem;
-                padding: 0.75rem 1rem;
+                left: 12px;
+                right: 12px;
+                max-width: none;
             }
         }
 
-        @media (max-width: 480px) {
-            body {
-                padding: 5px;
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .week-navigation {
-                gap: 0.75rem;
-            }
-
-            .nav-btn {
-                font-size: 0.85rem;
-                padding: 0.4rem 0.8rem;
-            }
-
-            .week-info {
-                padding: 0.4rem 0.8rem;
-                font-size: 0.9rem;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.4rem;
-            }
-
-            .stat-item {
-                padding: 0.6rem 0.4rem;
-            }
-
-            .stat-number {
-                font-size: 1.1rem;
-            }
-
-            .day-card {
-                padding: 0.75rem;
-            }
-
-            .day-title {
-                font-size: 1rem;
-            }
-
-            .day-date {
-                font-size: 0.8rem;
-            }
-
-            .phase-info {
-                padding: 0.6rem;
-                margin-bottom: 0.6rem;
-            }
-
-            .custom-table {
-                font-size: 0.7rem;
-            }
-
-            .custom-table th {
-                padding: 0.4rem 0.3rem;
-                font-size: 0.7rem;
-            }
-
-            .custom-table td {
-                padding: 0.3rem 0.25rem;
-            }
-
-            .flash-message {
-                font-size: 0.8rem;
-                padding: 0.6rem 0.8rem;
-            }
-        }
-
-        /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .nav-btn,
             .btn {
-                min-height: 44px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .day-card {
-                cursor: pointer;
-                min-height: 120px;
-            }
-
-            .day-card:active {
-                transform: scale(0.98);
-            }
-
-            .custom-table tr {
-                min-height: 44px;
-            }
-
-            .week-navigation {
-                gap: 1rem;
-            }
-
-            .nav-btn:active,
-            .btn:active {
-                transform: scale(0.95);
+                min-height: 46px;
             }
         }
 
-        /* Safe area for modern phones with notches */
         @supports (padding: max(0px)) {
             body {
-                padding-left: max(8px, env(safe-area-inset-left));
-                padding-right: max(8px, env(safe-area-inset-right));
-                padding-top: max(8px, env(safe-area-inset-top));
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
-            }
-        }
-
-        /* Optimize for landscape mode */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .header {
-                padding: 1rem;
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .week-navigation {
-                flex-direction: row;
-                gap: 1rem;
-                margin-top: 0.5rem;
-            }
-
-            .week-stats {
-                padding: 0.5rem 1rem;
-            }
-
-            .content {
-                padding: 0.75rem;
-            }
-
-            .week-container {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.75rem;
-            }
-
-            .day-card {
-                padding: 0.75rem;
-            }
-        }
-
-        /* Optimize for one-handed usage */
-        @media (max-width: 400px) and (min-height: 700px) {
-            .week-navigation {
-                position: sticky;
-                bottom: 0;
-                background: white;
-                padding: 0.75rem;
-                margin: 0 -1rem -1rem -1rem;
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-                border-radius: 12px 12px 0 0;
-            }
-
-            .controls {
-                position: sticky;
-                bottom: 0;
-                background: white;
-                padding: 1rem;
-                margin: 0 -1rem -1rem -1rem;
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-                border-radius: 12px 12px 0 0;
+                padding-left: max(12px, env(safe-area-inset-left));
+                padding-right: max(12px, env(safe-area-inset-right));
+                padding-top: max(12px, env(safe-area-inset-top));
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
             }
         }
     </style>
 </head>
-
 <body>
-    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="flash-messages">
@@ -820,50 +720,57 @@
         {% endif %}
     {% endwith %}
 
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-calendar-week"></i> 周训练计划</h1>
-            <p class="subtitle">科学规划，系统训练</p>
-
-            <div class="week-navigation">
-                <a href="/week?week={{ prev_week }}" class="nav-btn" {% if current_week_offset <= -4 %}style="visibility: hidden"{% endif %}>
-                    <i class="fas fa-chevron-left"></i> 上一周
-                </a>
-
-                <div class="week-info">
-                    第 {{ current_week_offset + 1 }} 周
+    <main class="board">
+        <section class="hero">
+            <div class="hero-grid">
+                <div>
+                    <span class="eyebrow"><i class="fas fa-calendar-week"></i> Week</span>
+                    <h1 class="hero-title">第 {{ current_week_offset + 1 }} 周</h1>
                 </div>
-
-                <a href="/week?week={{ next_week }}" class="nav-btn">
-                    下一周 <i class="fas fa-chevron-right"></i>
-                </a>
+                <aside class="week-panel">
+                    <span class="week-panel-label">训练天数</span>
+                    <div class="week-panel-value">{{ training_days }}</div>
+                </aside>
             </div>
+        </section>
+
+        <div class="hero-controls">
+            <a href="/week?week={{ prev_week }}" class="nav-btn {% if current_week_offset <= -4 %}is-hidden{% endif %}">
+                <i class="fas fa-chevron-left"></i> 上一周
+            </a>
+            <div class="week-info">
+                <i class="fas fa-wave-square"></i>
+                <span>第 {{ current_week_offset + 1 }} 周</span>
+            </div>
+            <a href="/week?week={{ next_week }}" class="nav-btn">
+                下一周 <i class="fas fa-chevron-right"></i>
+            </a>
         </div>
 
-        <div class="week-stats">
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-number">{{ training_days }}</div>
-                    <div class="stat-label">训练天数</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">{{ 7 - training_days }}</div>
-                    <div class="stat-label">休息天数</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-number">{{ "%.1f"|format((training_days / 7) * 100) }}%</div>
-                    <div class="stat-label">训练强度</div>
-                </div>
-            </div>
-        </div>
+        <section class="stats-grid">
+            <article class="stat-card">
+                <div class="stat-label">训练天数</div>
+                <div class="stat-number">{{ training_days }}</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-label">恢复天数</div>
+                <div class="stat-number">{{ 7 - training_days }}</div>
+            </article>
+            <article class="stat-card">
+                <div class="stat-label">训练密度</div>
+                <div class="stat-number">{{ "%.1f"|format((training_days / 7) * 100) }}%</div>
+            </article>
+        </section>
 
-        <div class="content">
+        <section class="content">
             <div class="week-container">
                 {% for date_str, day_data in week_plan.items() %}
-                    <div class="day-card {% if day_data.has_plan %}exercise-day{% else %}rest-day{% endif %}">
+                    <article class="day-card {% if day_data.has_plan %}exercise-day{% else %}rest-day{% endif %}">
                         <div class="day-header">
                             <div>
-                                <div class="day-title">{{ day_data.day_name }}</div>
+                                <div class="day-title">
+                                    <a class="day-link" href="/?date={{ date_str }}">{{ day_data.day_name }}</a>
+                                </div>
                                 <div class="day-date">{{ day_data.date_obj.strftime("%-m月%-d日") }}</div>
                             </div>
                             <div class="day-badge {% if day_data.has_plan %}badge-exercise{% else %}badge-rest{% endif %}">
@@ -890,27 +797,45 @@
                             {% if day_data.plan_rows %}
                                 <div class="plan-section">
                                     <h4 class="plan-title"><i class="fas fa-list-alt"></i> 训练内容</h4>
-                                    <div class="table-wrapper">
-                                        <table class="custom-table">
-                                            <thead>
+                                    <div class="plan-mobile-list">
+                                        {% for row in day_data.plan_rows %}
+                                            <article class="plan-mobile-card">
+                                                <h5 class="plan-mobile-name">{{ row[0] }}</h5>
+                                                <div class="plan-mobile-meta">
+                                                    {% for cell in row[1:] %}
+                                                        {% if cell or cell == 0 %}
+                                                            <span class="plan-mobile-pill">
+                                                                <strong>{{ day_data.plan_headers[loop.index] }}</strong>
+                                                                <span>{{ cell }}</span>
+                                                            </span>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </article>
+                                        {% endfor %}
+                                    </div>
+                                    <table class="custom-table">
+                                        <thead>
+                                            <tr>
+                                                {% for header in day_data.plan_headers %}
+                                                    <th>{{ header }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in day_data.plan_rows %}
                                                 <tr>
-                                                    {% for header in day_data.plan_headers %}
-                                                        <th>{{ header }}</th>
+                                                    {% for cell in row %}
+                                                        <td>{{ cell }}</td>
                                                     {% endfor %}
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {% for row in day_data.plan_rows %}
-                                                    <tr>
-                                                        {% for cell in row %}
-                                                            <td>{{ cell }}</td>
-                                                        {% endfor %}
-                                                    </tr>
-                                                {% endfor %}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div style="margin-top: 0.9rem;">
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                    <div class="day-actions">
+                                        <a href="/?date={{ date_str }}" class="btn btn-secondary">
+                                            <i class="fas fa-calendar-day"></i> 查看当天
+                                        </a>
                                         <a href="/training?date={{ date_str }}" class="btn btn-primary">
                                             <i class="fas fa-play"></i> 进入训练
                                         </a>
@@ -919,12 +844,16 @@
                             {% endif %}
                         {% else %}
                             <div class="empty-day">
-                                <i class="fas fa-couch"></i>
-                                <h4>休息日</h4>
-                                <p>好好休息，为明天的训练储备能量！</p>
+                                <i class="fas fa-seedling"></i>
+                                <h4>恢复日</h4>
+                            </div>
+                            <div class="day-actions">
+                                <a href="/?date={{ date_str }}" class="btn btn-secondary">
+                                    <i class="fas fa-calendar-day"></i> 查看当天
+                                </a>
                             </div>
                         {% endif %}
-                    </div>
+                    </article>
                 {% endfor %}
             </div>
 
@@ -933,107 +862,24 @@
                     <i class="fas fa-calendar-day"></i> 返回日视图
                 </a>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 
     <script>
-        // 自动隐藏flash消息
         document.addEventListener('DOMContentLoaded', function() {
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.animation = 'slideIn 0.3s ease reverse';
-                    setTimeout(() => message.remove(), 300);
-                }, 5000);
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateY(-6px)';
+                    setTimeout(() => message.remove(), 260);
+                }, 4200);
             });
 
-            // 添加卡片悬停效果
             const dayCards = document.querySelectorAll('.day-card');
-            dayCards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-4px) scale(1.02)';
-                });
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0) scale(1)';
-                });
+            dayCards.forEach((card, index) => {
+                card.style.animation = `slide-in 0.4s ease ${index * 0.04}s both`;
             });
-
-            // 表格行悬停效果
-            const tableRows = document.querySelectorAll('.custom-table tbody tr');
-            tableRows.forEach(row => {
-                row.addEventListener('mouseenter', function() {
-                    this.style.transform = 'scale(1.01)';
-                });
-                row.addEventListener('mouseleave', function() {
-                    this.style.transform = 'scale(1)';
-                });
-            });
-
-            // 移动端触摸优化
-            if ('ontouchstart' in window) {
-                // 添加触摸反馈到导航按钮
-                const navButtons = document.querySelectorAll('.nav-btn');
-                navButtons.forEach(btn => {
-                    btn.addEventListener('touchstart', function() {
-                        this.style.transform = 'scale(0.95)';
-                    });
-                    btn.addEventListener('touchend', function() {
-                        this.style.transform = '';
-                    });
-                });
-
-                // 卡片触摸反馈
-                dayCards.forEach(card => {
-                    card.addEventListener('touchstart', function() {
-                        this.style.transform = 'translateY(-2px) scale(1.01)';
-                    });
-                    card.addEventListener('touchend', function() {
-                        this.style.transform = '';
-                    });
-                });
-
-                // 表格触摸滚动优化
-                const tables = document.querySelectorAll('.custom-table');
-                tables.forEach(table => {
-                    table.style.webkitOverflowScrolling = 'touch';
-                    table.style.overscrollBehavior = 'contain';
-                });
-
-                // 防止移动端双击缩放
-                let lastTouchEnd = 0;
-                document.addEventListener('touchend', function(event) {
-                    const now = (new Date()).getTime();
-                    if (now - lastTouchEnd <= 300) {
-                        event.preventDefault();
-                    }
-                    lastTouchEnd = now;
-                }, false);
-
-                // 优化触摸目标大小
-                const smallButtons = document.querySelectorAll('.day-badge');
-                smallButtons.forEach(btn => {
-                    btn.style.minWidth = '60px';
-                    btn.style.minHeight = '24px';
-                    btn.style.display = 'flex';
-                    btn.style.alignItems = 'center';
-                    btn.style.justifyContent = 'center';
-                });
-            }
-        });
-
-        // 键盘导航
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') {
-                const prevLink = document.querySelector('.nav-btn[href*="prev"]');
-                if (prevLink) {
-                    window.location.href = prevLink.href;
-                }
-            } else if (e.key === 'ArrowRight') {
-                const nextLink = document.querySelector('.nav-btn[href*="next"]');
-                if (nextLink) {
-                    window.location.href = nextLink.href;
-                }
-            }
         });
     </script>
 </body>

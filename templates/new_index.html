@@ -2,91 +2,337 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>个人训练管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="训练控制台">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#181512">
+    <meta name="description" content="训练控制台页面，优先展示本地缓存，再同步计划、会话和训练历史。">
+    <title>训练控制台</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Serif+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary: #dc5a30;
+            --primary-dark: #9e3417;
+            --success: #2f7c60;
+            --warning: #b97b18;
+            --danger: #bb4e3b;
+            --gray-50: #faf4eb;
+            --gray-100: #f2e7d7;
+            --gray-200: #e0d2be;
+            --gray-300: #c7b59a;
+            --gray-400: #9e8a72;
+            --gray-500: #7f6c57;
+            --gray-600: #65533f;
+            --gray-700: #43362a;
+            --gray-800: #241d17;
+            --gray-900: #18130f;
+            --panel: rgba(255, 250, 242, 0.9);
+            --panel-strong: #fffaf2;
+            --line: rgba(24, 19, 15, 0.1);
+            --line-strong: rgba(24, 19, 15, 0.16);
+            --shadow: 0 28px 70px rgba(79, 48, 14, 0.14);
+            --shadow-soft: 0 18px 36px rgba(79, 48, 14, 0.08);
+            --display-font: "Barlow Condensed", sans-serif;
+            --body-font: "Noto Serif SC", serif;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-400: #9ca3af;
-            --gray-500: #6b7280;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--gray-50);
+            min-height: 100vh;
+            padding: 24px;
             color: var(--gray-800);
-            line-height: 1.5;
+            font-family: var(--body-font);
+            background:
+                radial-gradient(circle at 12% 10%, rgba(255, 243, 218, 0.92), transparent 28%),
+                radial-gradient(circle at 84% 14%, rgba(220, 90, 48, 0.16), transparent 22%),
+                linear-gradient(145deg, #f3ebdb 0%, #eadcc5 52%, #d7c2a0 100%);
+            position: relative;
+            overflow-x: hidden;
         }
 
-        .container {
-            max-width: 800px;
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(24, 19, 15, 0.022) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(24, 19, 15, 0.022) 1px, transparent 1px);
+            background-size: 36px 36px;
+            opacity: 0.42;
+            pointer-events: none;
+        }
+
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 30;
+            display: grid;
+            gap: 10px;
+            max-width: 320px;
+        }
+
+        .flash-message {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            color: #fff;
+            box-shadow: var(--shadow-soft);
+            animation: slide-in 0.35s ease;
+        }
+
+        .flash-message.success {
+            background: rgba(47, 124, 96, 0.92);
+        }
+
+        .flash-message.error {
+            background: rgba(187, 78, 59, 0.94);
+        }
+
+        .app-shell {
+            max-width: 1240px;
             margin: 0 auto;
-            padding: 20px;
+            border-radius: 34px;
+            background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(255, 247, 237, 0.92));
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            position: relative;
         }
 
-        .header {
-            background: var(--primary);
-            color: white;
-            padding: 30px 0;
-            text-align: center;
-            border-radius: 12px;
-            margin-bottom: 30px;
+        .app-shell::before {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            border-radius: 28px;
+            pointer-events: none;
         }
 
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
+        .hero {
+            position: relative;
+            padding: 34px 36px 28px;
+            background:
+                linear-gradient(120deg, rgba(255, 255, 255, 0.18), transparent 45%),
+                linear-gradient(145deg, #18130f 0%, #261c15 50%, #38271d 100%);
+            color: #f8f0e3;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 80% 18%, rgba(220, 90, 48, 0.18), transparent 24%),
+                radial-gradient(circle at 14% 88%, rgba(255, 255, 255, 0.08), transparent 18%);
+            pointer-events: none;
+        }
+
+        .hero-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.95fr);
+            gap: 28px;
+            align-items: end;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.78rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .hero-title {
+            font-size: clamp(2.2rem, 4.8vw, 4.3rem);
+            line-height: 1.04;
+            letter-spacing: -0.05em;
+            max-width: 11ch;
+            margin-bottom: 14px;
+        }
+
+        .hero-subtitle {
+            max-width: 58ch;
+            color: rgba(248, 240, 227, 0.76);
+            line-height: 1.78;
+            font-size: 1rem;
+        }
+
+        .quick-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 22px;
+        }
+
+        .quick-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 16px;
+            text-decoration: none;
+            color: #f8f0e3;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+        }
+
+        .quick-link:hover {
+            transform: translateY(-2px);
+            border-color: rgba(220, 90, 48, 0.3);
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .hero-panel {
+            position: relative;
+            padding: 24px 22px;
+            border-radius: 26px 26px 12px 26px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(12px);
+        }
+
+        .hero-panel::after {
+            content: "";
+            position: absolute;
+            right: 22px;
+            top: 22px;
+            width: 54px;
+            height: 54px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            box-shadow: 0 18px 30px rgba(220, 90, 48, 0.22);
+        }
+
+        .hero-panel-label {
+            display: block;
+            font-size: 0.8rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(248, 240, 227, 0.58);
             margin-bottom: 8px;
         }
 
-        .header p {
-            opacity: 0.9;
-            font-size: 1.1rem;
+        .hero-panel-value {
+            font-family: var(--display-font);
+            font-size: clamp(2.8rem, 6vw, 5rem);
+            line-height: 0.92;
+            letter-spacing: 0.04em;
+            margin-bottom: 12px;
         }
 
-        .nav-tabs {
-            display: flex;
-            background: white;
-            border-radius: 12px;
-            padding: 6px;
-            margin-bottom: 30px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        .hero-panel-note {
+            max-width: 24ch;
+            color: rgba(248, 240, 227, 0.74);
+            line-height: 1.75;
+        }
+
+        .hero-stats {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .hero-stat {
+            padding: 18px 18px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            min-height: 118px;
+        }
+
+        .hero-stat-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(248, 240, 227, 0.6);
+            margin-bottom: 10px;
+        }
+
+        .hero-stat-value {
+            font-family: var(--display-font);
+            font-size: clamp(1.9rem, 4vw, 3rem);
+            line-height: 0.96;
+            margin-bottom: 8px;
+        }
+
+        .hero-stat-note {
+            color: rgba(248, 240, 227, 0.72);
+            line-height: 1.65;
+            font-size: 0.92rem;
+        }
+
+        .surface {
+            padding: 24px 36px 36px;
+        }
+
+        .tab-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            padding: 10px;
+            border-radius: 26px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            margin-bottom: 22px;
         }
 
         .nav-tab {
-            flex: 1;
-            padding: 12px 20px;
             border: none;
+            border-radius: 18px;
+            padding: 16px 18px;
+            cursor: pointer;
             background: transparent;
             color: var(--gray-600);
-            font-weight: 600;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.3s ease;
+            font: inherit;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.22s ease, background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .nav-tab:hover {
+            transform: translateY(-2px);
+            color: var(--gray-800);
         }
 
         .nav-tab.active {
-            background: var(--primary);
-            color: white;
+            background: linear-gradient(135deg, var(--primary), #ef8f57);
+            color: #fff9f1;
+            box-shadow: 0 18px 30px rgba(220, 90, 48, 0.18);
         }
 
         .tab-content {
@@ -98,295 +344,548 @@
         }
 
         .card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
+            position: relative;
+            padding: 26px;
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(255, 251, 244, 0.96), rgba(252, 245, 235, 0.92));
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(24, 19, 15, 0.05);
+            pointer-events: none;
+        }
+
+        .card-head {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 18px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         .card-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            color: var(--gray-800);
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            color: var(--gray-900);
+            margin-bottom: 8px;
         }
 
-        .card-subtitle {
-            margin-top: -8px;
-            margin-bottom: 16px;
+        .card-kicker {
+            max-width: 62ch;
             color: var(--gray-500);
-            font-size: 0.95rem;
+            line-height: 1.75;
+            font-size: 0.96rem;
+        }
+
+        .card-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: rgba(220, 90, 48, 0.1);
+            color: var(--primary-dark);
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .plan-stage,
+        .training-stage,
+        .upload-stage,
+        .history-stage {
+            position: relative;
         }
 
         .summary-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 12px;
-            margin-bottom: 18px;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
         }
 
         .summary-card {
-            padding: 14px 16px;
-            border-radius: 10px;
-            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-            border: 1px solid var(--gray-200);
+            padding: 18px;
+            border-radius: 20px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 238, 225, 0.9));
+            border: 1px solid rgba(24, 19, 15, 0.08);
         }
 
         .summary-label {
             color: var(--gray-500);
-            font-size: 0.85rem;
-            margin-bottom: 6px;
+            font-size: 0.84rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
         }
 
         .summary-value {
-            color: var(--gray-800);
-            font-size: 1.05rem;
-            font-weight: 700;
+            color: var(--gray-900);
+            font-family: var(--display-font);
+            font-size: clamp(1.45rem, 3vw, 2rem);
+            line-height: 1;
+            letter-spacing: 0.03em;
         }
 
         .plan-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 12px;
-            margin-bottom: 18px;
+            gap: 16px;
             flex-wrap: wrap;
+            padding: 18px 20px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            margin-bottom: 20px;
         }
 
-        .plan-actions .action-hint {
+        .action-hint {
             color: var(--gray-500);
-            font-size: 0.9rem;
+            line-height: 1.65;
+            max-width: 34rem;
         }
 
-        .upload-area {
-            border: 2px dashed var(--gray-300);
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
+        .remarks-list {
+            list-style: none;
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 18px 20px;
+            border-radius: 22px;
+            background: rgba(255, 248, 235, 0.92);
+            border: 1px solid rgba(220, 90, 48, 0.14);
         }
 
-        .upload-area:hover {
-            border-color: var(--primary);
-            background: var(--gray-50);
+        .remarks-list li {
+            position: relative;
+            padding-left: 24px;
+            color: var(--gray-700);
+            line-height: 1.7;
         }
 
-        .upload-area i {
-            font-size: 3rem;
-            color: var(--gray-400);
-            margin-bottom: 16px;
+        .remarks-list li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.72em;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, var(--primary), #ef8f57);
+            transform: translateY(-50%);
         }
 
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 1rem;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-large {
-            padding: 16px 32px;
-            font-size: 1.1rem;
+        .section-title {
+            margin: 24px 0 14px;
+            color: var(--gray-900);
+            font-size: 1.05rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
         }
 
         .exercise-item {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 18px;
             align-items: center;
-            padding: 16px;
-            border: 1px solid var(--gray-200);
-            border-radius: 8px;
-            margin-bottom: 12px;
+            padding: 20px 22px;
+            border-radius: 24px;
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 239, 228, 0.86));
+            margin-bottom: 14px;
+            box-shadow: 0 10px 20px rgba(79, 48, 14, 0.04);
+        }
+
+        .exercise-item.note-item {
+            background: linear-gradient(180deg, rgba(250, 242, 229, 0.96), rgba(245, 235, 219, 0.92));
+            border-style: dashed;
         }
 
         .exercise-info h4 {
-            font-weight: 600;
-            margin-bottom: 4px;
+            font-size: clamp(1.3rem, 2.4vw, 1.8rem);
+            color: var(--gray-900);
+            line-height: 1.35;
+            margin-bottom: 8px;
             white-space: pre-line;
         }
 
         .exercise-info p {
             color: var(--gray-600);
-            font-size: 0.9rem;
+            line-height: 1.72;
             white-space: pre-line;
         }
 
         .component-tags {
-            margin-top: 6px;
+            margin-top: 10px;
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 8px;
         }
 
         .component-tag {
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 999px;
-            background: rgba(37, 99, 235, 0.1);
-            color: var(--primary);
-            font-size: 0.8rem;
-            font-weight: 600;
+            background: rgba(220, 90, 48, 0.1);
+            color: var(--primary-dark);
+            font-size: 0.82rem;
+            font-weight: 700;
         }
 
-        .training-session {
-            text-align: center;
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 108px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-size: 0.84rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
 
-        .current-exercise {
-            background: var(--primary);
-            color: white;
-            padding: 24px;
-            border-radius: 12px;
-            margin-bottom: 24px;
+        .status-completed {
+            background: rgba(47, 124, 96, 0.16);
+            color: var(--success);
         }
 
-        .current-exercise h2 {
-            font-size: 1.8rem;
-            margin-bottom: 8px;
+        .status-in-progress {
+            background: rgba(220, 90, 48, 0.16);
+            color: var(--primary-dark);
         }
 
-        .set-info {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .detail-list {
-            margin-top: 0.75rem;
-            text-align: left;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            list-style: disc;
-            padding-left: 1.5rem;
-        }
-
-        .detail-list li {
-            color: rgba(255, 255, 255, 0.85);
-        }
-
-        .input-group {
-            margin-bottom: 16px;
-        }
-
-        .input-group label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 6px;
+        .status-pending {
+            background: rgba(101, 83, 63, 0.16);
             color: var(--gray-700);
         }
 
-        .input-group input, .input-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid var(--gray-300);
-            border-radius: 8px;
-            font-size: 1rem;
+        .status-note {
+            background: rgba(158, 138, 114, 0.18);
+            color: var(--gray-700);
         }
 
-        .input-group input:focus, .input-group textarea:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        .status-warmup {
+            background: rgba(185, 123, 24, 0.16);
+            color: var(--warning);
         }
 
-        .timer {
-            background: var(--warning);
-            color: white;
-            padding: 24px;
-            border-radius: 12px;
+        .status-rest {
+            background: rgba(67, 54, 42, 0.16);
+            color: var(--gray-700);
+        }
+
+        .status-log {
+            background: rgba(158, 52, 23, 0.14);
+            color: var(--primary-dark);
+        }
+
+        .rest-day-card,
+        .rest-day-message {
+            padding: 18px 20px;
+            border-radius: 22px;
+            background: linear-gradient(180deg, rgba(244, 234, 220, 0.94), rgba(240, 229, 212, 0.92));
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            color: var(--gray-600);
+            line-height: 1.72;
             text-align: center;
-            margin-bottom: 24px;
+            margin-bottom: 18px;
         }
 
-        .timer h3 {
-            font-size: 1.5rem;
+        .rest-day-message {
+            display: none;
+        }
+
+        .session-empty,
+        .session-live {
+            display: grid;
+            gap: 22px;
+        }
+
+        .session-empty {
+            padding: 24px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(246, 237, 224, 0.82));
+            border: 1px solid rgba(24, 19, 15, 0.08);
+        }
+
+        .session-empty-copy h2 {
+            font-size: clamp(1.7rem, 3vw, 2.4rem);
+            color: var(--gray-900);
+            line-height: 1.15;
+            margin-bottom: 10px;
+        }
+
+        .session-empty-copy p {
+            color: var(--gray-500);
+            line-height: 1.75;
+            max-width: 48rem;
+        }
+
+        .setup-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(240px, 0.9fr);
+            gap: 18px;
+            align-items: end;
+        }
+
+        .start-panel {
+            padding: 18px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            text-align: center;
+        }
+
+        .field-hint {
+            margin-top: 12px;
+            color: var(--gray-500);
+            line-height: 1.65;
+            font-size: 0.92rem;
+        }
+
+        .current-exercise {
+            padding: 26px;
+            border-radius: 28px;
+            background:
+                linear-gradient(130deg, rgba(255,255,255,0.08), transparent 44%),
+                linear-gradient(145deg, #1b1510 0%, #34241b 46%, #c84e26 100%);
+            color: #fff8ef;
+            box-shadow: 0 22px 34px rgba(158, 52, 23, 0.2);
+        }
+
+        .current-exercise h2 {
+            font-size: clamp(2rem, 4.4vw, 3.8rem);
+            line-height: 1.02;
+            letter-spacing: -0.05em;
+            margin-bottom: 10px;
+        }
+
+        .set-info {
+            color: rgba(255, 248, 239, 0.88);
+            font-size: 1.02rem;
+            line-height: 1.7;
+        }
+
+        .detail-list {
+            margin-top: 14px;
+            padding-left: 1.2rem;
+            line-height: 1.7;
+        }
+
+        .detail-list li {
+            color: rgba(255, 248, 239, 0.84);
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .input-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        .input-group:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .input-group label {
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--gray-700);
+            letter-spacing: 0.04em;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 15px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(24, 19, 15, 0.1);
+            background: rgba(255, 255, 255, 0.9);
+            color: var(--gray-900);
+            font: inherit;
+            transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: rgba(220, 90, 48, 0.34);
+            box-shadow: 0 0 0 4px rgba(220, 90, 48, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .session-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .upload-area {
+            padding: 40px 28px;
+            border-radius: 28px;
+            border: 1.5px dashed rgba(220, 90, 48, 0.28);
+            background:
+                radial-gradient(circle at top, rgba(220, 90, 48, 0.08), transparent 35%),
+                linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(247, 238, 225, 0.92));
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .upload-area:hover {
+            transform: translateY(-3px);
+            border-color: rgba(220, 90, 48, 0.48);
+            box-shadow: 0 18px 28px rgba(79, 48, 14, 0.08);
+        }
+
+        .upload-area i {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 76px;
+            height: 76px;
+            border-radius: 24px;
+            background: rgba(220, 90, 48, 0.12);
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+
+        .upload-area h3 {
+            font-size: clamp(1.5rem, 3vw, 2rem);
+            color: var(--gray-900);
             margin-bottom: 8px;
         }
 
-        .timer-display {
-            font-size: 3rem;
-            font-weight: 700;
-            font-family: 'Courier New', monospace;
+        .upload-area p {
+            color: var(--gray-500);
+            line-height: 1.7;
         }
 
-        .progress-bar {
-            background: var(--gray-200);
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin-bottom: 24px;
-        }
-
-        .progress-fill {
-            background: var(--success);
-            height: 100%;
-            transition: width 0.3s ease;
+        #file-info {
+            margin-top: 18px;
+            padding: 18px 20px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(24, 19, 15, 0.08);
         }
 
         .history-item {
-            padding: 16px;
-            border: 1px solid var(--gray-200);
-            border-radius: 8px;
-            margin-bottom: 12px;
+            padding: 20px 22px;
+            border-radius: 22px;
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(247, 239, 228, 0.88));
+            margin-bottom: 14px;
         }
 
         .history-date {
-            font-weight: 600;
-            color: var(--primary);
-            margin-bottom: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            margin-bottom: 14px;
+            background: rgba(220, 90, 48, 0.1);
+            color: var(--primary-dark);
+            font-weight: 700;
         }
 
         .exercise-list {
-            list: none;
+            list-style: none;
         }
 
         .exercise-list li {
-            padding: 8px 0;
-            border-bottom: 1px solid var(--gray-100);
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(24, 19, 15, 0.08);
+            color: var(--gray-700);
+            line-height: 1.7;
         }
 
         .exercise-list li:last-child {
             border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 18px;
+            padding: 14px 22px;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            filter: saturate(1.02);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #ef8f57);
+            color: #fff9f1;
+            box-shadow: 0 16px 28px rgba(220, 90, 48, 0.18);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #45a17e);
+            color: #f8fffc;
+            box-shadow: 0 16px 28px rgba(47, 124, 96, 0.18);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #d07a56);
+            color: #fff9f4;
+            box-shadow: 0 16px 28px rgba(187, 78, 59, 0.16);
+        }
+
+        .btn-large {
+            min-height: 58px;
+            width: 100%;
+            font-size: 1rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .rest-timer {
             position: fixed;
-            top: 50%;
-            left: 50%;
+            inset: 50% auto auto 50%;
             transform: translate(-50%, -50%);
-            background: var(--warning);
-            color: white;
-            padding: 40px;
-            border-radius: 20px;
+            width: min(92vw, 420px);
+            padding: 34px 28px;
+            border-radius: 30px;
+            background:
+                linear-gradient(130deg, rgba(255,255,255,0.12), transparent 44%),
+                linear-gradient(145deg, #19130f 0%, #34251b 48%, #c27b17 100%);
+            color: #fff7ea;
+            box-shadow: 0 28px 50px rgba(79, 48, 14, 0.3);
             text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            z-index: 1000;
+            z-index: 40;
             display: none;
         }
 
@@ -395,250 +894,273 @@
         }
 
         .rest-timer h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
+            font-size: 1.9rem;
+            margin-bottom: 18px;
         }
 
         .rest-timer .time-display {
-            font-size: 4rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            font-family: 'Courier New', monospace;
+            font-family: var(--display-font);
+            font-size: clamp(3.4rem, 10vw, 5rem);
+            line-height: 0.9;
+            letter-spacing: 0.06em;
+            margin-bottom: 14px;
         }
 
-        .status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
+        @keyframes slide-in {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .status-completed {
-            background: var(--success);
-            color: white;
-        }
-
-        .status-in-progress {
-            background: var(--primary);
-            color: white;
-        }
-
-        .status-pending {
-            background: var(--gray-400);
-            color: white;
-        }
-
-        .status-note {
-            background: var(--gray-400);
-            color: white;
-        }
-
-        .status-warmup {
-            background: var(--warning);
-            color: white;
-        }
-
-        .status-rest {
-            background: var(--gray-600);
-            color: white;
-        }
-
-        .status-log {
-            background: var(--primary-dark);
-            color: white;
-        }
-
-        .exercise-item.note-item {
-            background: var(--gray-50);
-            border-style: dashed;
-        }
-
-        .section-title {
-            font-weight: 700;
-            margin: 20px 0 12px;
-            color: var(--gray-700);
-        }
-
-        .rest-day-card {
-            background: var(--gray-100);
-            border: 1px dashed var(--gray-300);
-            border-radius: 10px;
-            padding: 16px;
-            color: var(--gray-600);
-            margin-bottom: 16px;
-            text-align: center;
-        }
-
-        .rest-day-message {
-            display: none;
-            padding: 16px;
-            margin-bottom: 16px;
-            border-radius: 10px;
-            background: var(--gray-100);
-            color: var(--gray-600);
-            text-align: center;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
+        @media (max-width: 960px) {
+            body {
+                padding: 16px;
             }
 
-            .header h1 {
-                font-size: 1.5rem;
+            .hero-grid,
+            .hero-stats,
+            .setup-grid,
+            .field-grid,
+            .session-actions {
+                grid-template-columns: 1fr;
             }
 
-            .nav-tabs {
+            .tab-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .card-head {
                 flex-direction: column;
-                gap: 4px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .hero,
+            .surface {
+                padding-left: 20px;
+                padding-right: 20px;
             }
 
-            .timer-display {
-                font-size: 2rem;
+            .hero-title {
+                max-width: 13ch;
+            }
+
+            .tab-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .exercise-item {
+                grid-template-columns: 1fr;
+            }
+
+            .status-badge {
+                justify-self: start;
+            }
+
+            .plan-actions {
+                align-items: stretch;
+            }
+
+            .quick-links {
+                display: grid;
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-dumbbell"></i> 个人训练管理</h1>
-            <p>简单高效的训练记录工具</p>
-        </div>
-
-        <div class="nav-tabs">
-            <button class="nav-tab active" data-tab="plan" onclick="switchTab(event, 'plan')">
-                <i class="fas fa-calendar-day"></i> 今日计划
-            </button>
-            <button class="nav-tab" data-tab="training" onclick="switchTab(event, 'training')">
-                <i class="fas fa-play"></i> 开始训练
-            </button>
-            <button class="nav-tab" data-tab="upload" onclick="switchTab(event, 'upload')">
-                <i class="fas fa-upload"></i> 上传计划
-            </button>
-            <button class="nav-tab" data-tab="history" onclick="switchTab(event, 'history')">
-                <i class="fas fa-history"></i> 历史记录
-            </button>
-        </div>
-
-        <!-- 今日计划 -->
-        <div id="plan-tab" class="tab-content active">
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-calendar-day"></i> 今日训练计划
-                </div>
-                <div class="card-subtitle">页面优先展示缓存内容，再同步最新计划和训练状态。</div>
-                <div id="today-plan">
-                    <p>正在加载今日计划...</p>
-                </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">
+                        {% if category == 'success' %}
+                            <i class="fas fa-check-circle"></i>
+                        {% else %}
+                            <i class="fas fa-exclamation-circle"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                {% endfor %}
             </div>
-        </div>
+        {% endif %}
+    {% endwith %}
 
-        <!-- 开始训练 -->
-        <div id="training-tab" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-play"></i> 训练进行中
-                </div>
-                <div id="training-session">
-                    <div id="rest-day-message" class="rest-day-message">
-                        今天是休息日，专注恢复和拉伸。
-                    </div>
-                    <div id="no-session">
-                        <p style="text-align: center; color: var(--gray-600); margin-bottom: 20px;">
-                            还没有开始训练
-                        </p>
-                        <div class="input-group">
-                            <label>组间休息（秒）</label>
-                            <input type="number" id="rest-interval-input" min="0" step="5" value="{{ default_rest_interval }}">
-                        </div>
-                        <div style="text-align: center;">
-                            <button id="start-training-btn" class="btn btn-primary btn-large" onclick="startTraining()">
-                                <i class="fas fa-play"></i> 开始训练
-                            </button>
-                        </div>
-                    </div>
-                    <div id="active-session" style="display: none;">
-                        <div class="current-exercise">
-                            <h2 id="current-exercise-name">深蹲</h2>
-                            <p class="set-info">第 <span id="current-set">1</span> 组</p>
-                            <p class="set-info" id="current-target-info"></p>
-                            <ul class="detail-list" id="current-details"></ul>
-                        </div>
-
-                        <div class="input-group">
-                            <label>实际完成次数（可选）</label>
-                            <input type="number" id="actual-reps" placeholder="需要记录时直接输入">
-                        </div>
-
-                        <div class="input-group">
-                            <label>实际重量 (kg)</label>
-                            <input type="text" id="actual-weight" placeholder="输入实际使用的重量">
-                        </div>
-
-                        <div class="input-group">
-                            <label>训练感受 (可选)</label>
-                            <textarea id="notes" rows="3" placeholder="记录一下这组的感受..."></textarea>
-                        </div>
-
-                        <button class="btn btn-success btn-large" onclick="completeSet()" style="width: 100%;">
-                            <i class="fas fa-check"></i> 完成这组
-                        </button>
-                        <button class="btn btn-danger btn-large" onclick="endTraining()" style="width: 100%; margin-top: 12px;">
-                            <i class="fas fa-flag-checkered"></i> 结束训练
-                        </button>
+    <main class="app-shell">
+        <section class="hero">
+            <div class="hero-grid">
+                <div>
+                    <span class="eyebrow"><i class="fas fa-wave-square"></i> Training</span>
+                    <h1 class="hero-title">{{ selected_date }}</h1>
+                    <div class="quick-links">
+                        <a class="quick-link" href="/?date={{ selected_date }}">
+                            <i class="fas fa-book-open"></i>
+                            返回计划台账
+                        </a>
+                        <a class="quick-link" href="/week">
+                            <i class="fas fa-table-cells-large"></i>
+                            查看周排班
+                        </a>
                     </div>
                 </div>
+                <aside class="hero-panel">
+                    <span class="hero-panel-label">状态</span>
+                    <div class="hero-panel-value">训练页</div>
+                </aside>
             </div>
-        </div>
+        </section>
 
-        <!-- 上传计划 -->
-        <div id="upload-tab" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-upload"></i> 上传训练计划
-                </div>
-                <form id="upload-form">
-                    <div class="upload-area" onclick="document.getElementById('file-input').click()">
-                        <i class="fas fa-cloud-upload-alt"></i>
-                        <h3>点击上传Excel文件</h3>
-                        <p>支持 .xlsx 格式</p>
-                        <input type="file" id="file-input" accept=".xlsx" style="display: none;" onchange="handleFileSelect(event)">
+        <section class="surface">
+            <nav class="tab-strip" aria-label="训练控制台导航">
+                <button class="nav-tab active" data-tab="plan" onclick="switchTab(event, 'plan')">
+                    <i class="fas fa-calendar-day"></i>
+                    今日计划
+                </button>
+                <button class="nav-tab" data-tab="training" onclick="switchTab(event, 'training')">
+                    <i class="fas fa-play"></i>
+                    开始训练
+                </button>
+                <button class="nav-tab" data-tab="upload" onclick="switchTab(event, 'upload')">
+                    <i class="fas fa-upload"></i>
+                    上传计划
+                </button>
+                <button class="nav-tab" data-tab="history" onclick="switchTab(event, 'history')">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    历史记录
+                </button>
+            </nav>
+
+            <div id="plan-tab" class="tab-content active">
+                <section class="card">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title"><i class="fas fa-calendar-check"></i> 今日训练计划</h2>
+                        </div>
                     </div>
-                    <div id="file-info" style="display: none; margin-top: 16px;">
-                        <p><strong>已选择文件：</strong> <span id="file-name"></span></p>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-upload"></i> 开始上传
-                        </button>
+                    <div id="today-plan" class="plan-stage">
+                        <p style="text-align: center; color: var(--gray-600);">正在加载今日计划...</p>
                     </div>
-                </form>
+                </section>
             </div>
-        </div>
 
-        <!-- 历史记录 -->
-        <div id="history-tab" class="tab-content">
-            <div class="card">
-                <div class="card-title">
-                    <i class="fas fa-history"></i> 训练历史
-                </div>
-                <div id="training-history">
-                    <p>正在加载历史记录...</p>
-                </div>
+            <div id="training-tab" class="tab-content">
+                <section class="card">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title"><i class="fas fa-play-circle"></i> 训练进行中</h2>
+                        </div>
+                    </div>
+                    <div id="training-session" class="training-stage">
+                        <div id="rest-day-message" class="rest-day-message">
+                            今天恢复
+                        </div>
+                        <div id="no-session" class="session-empty">
+                            <div class="session-empty-copy">
+                                <h2>开始训练</h2>
+                            </div>
+                            <div class="setup-grid">
+                                <div class="input-group">
+                                    <label for="rest-interval-input">组间休息（秒）</label>
+                                    <input type="number" id="rest-interval-input" min="0" step="5" value="{{ default_rest_interval }}">
+                                </div>
+                                <div class="start-panel">
+                                    <button id="start-training-btn" class="btn btn-primary btn-large" onclick="startTraining()">
+                                        <i class="fas fa-play"></i>
+                                        开始训练
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="active-session" class="session-live" style="display: none;">
+                            <div class="current-exercise">
+                                <h2 id="current-exercise-name">深蹲</h2>
+                                <p class="set-info">第 <span id="current-set">1</span> 组</p>
+                                <p class="set-info" id="current-target-info"></p>
+                                <ul class="detail-list" id="current-details"></ul>
+                            </div>
+
+                            <div class="field-grid">
+                                <div class="input-group">
+                                    <label for="actual-reps">实际完成次数（可选）</label>
+                                    <input type="number" id="actual-reps" placeholder="需要记录时直接输入">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="actual-weight">实际重量（kg）</label>
+                                    <input type="text" id="actual-weight" placeholder="输入实际使用的重量">
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="notes">训练感受（可选）</label>
+                                    <textarea id="notes" rows="3" placeholder="记录这一组的感觉、节奏或技术点"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="session-actions">
+                                <button class="btn btn-success btn-large" onclick="completeSet()">
+                                    <i class="fas fa-check"></i>
+                                    完成这组
+                                </button>
+                                <button class="btn btn-danger btn-large" onclick="endTraining()">
+                                    <i class="fas fa-flag-checkered"></i>
+                                    结束训练
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </div>
-        </div>
-    </div>
 
-    <!-- 休息计时器 -->
+            <div id="upload-tab" class="tab-content">
+                <section class="card">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title"><i class="fas fa-file-arrow-up"></i> 上传训练计划</h2>
+                        </div>
+                    </div>
+                    <form id="upload-form" class="upload-stage">
+                        <div class="upload-area" onclick="document.getElementById('file-input').click()">
+                            <i class="fas fa-cloud-arrow-up"></i>
+                            <h3>上传 Excel</h3>
+                            <input type="file" id="file-input" accept=".xlsx" style="display: none;" onchange="handleFileSelect(event)">
+                        </div>
+                        <div id="file-info" style="display: none;">
+                            <p><strong>已选择文件：</strong> <span id="file-name"></span></p>
+                            <div style="margin-top: 14px;">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-upload"></i>
+                                    开始上传
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            <div id="history-tab" class="tab-content">
+                <section class="card">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title"><i class="fas fa-timeline"></i> 训练历史</h2>
+                        </div>
+                    </div>
+                    <div id="training-history" class="history-stage">
+                        <p style="text-align: center; color: var(--gray-600);">正在加载历史记录...</p>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
     <div id="rest-timer" class="rest-timer">
         <h2>休息时间</h2>
         <div class="time-display" id="rest-time-display">60</div>
-        <p>秒</p>
         <button class="btn btn-danger" onclick="skipRest()">跳过休息</button>
     </div>
 
@@ -795,10 +1317,7 @@
         }
 
         function getActionHint() {
-            if (sessionState && sessionState.status === 'active') {
-                return '当前训练进度已保留，继续完成后续动作。';
-            }
-            return '计划页展示结构化摘要，训练页承接实时记录。';
+            return '';
         }
 
         function updatePlanAction() {
@@ -904,13 +1423,13 @@
             }
 
             if (!exercises.length) {
-                planDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">今天没有训练计划</p>';
+                planDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">暂无计划</p>';
                 return;
             }
 
             const trackableExercises = exercises.filter(exercise => exercise && exercise.is_trackable !== false);
             const noteExercises = exercises.filter(exercise => exercise && exercise.is_trackable === false);
-            const defaultRest = formatRestLabel(plan.default_rest_seconds) || '按动作节奏';
+            const defaultRest = formatRestLabel(plan.default_rest_seconds) || '-';
             const summaryItems = [
                 { label: '训练阶段', value: plan.phase || '今日计划' },
                 { label: '训练日期', value: plan.date || activeDate },
@@ -933,7 +1452,6 @@
                         <i class="fas fa-bolt"></i>
                         <span id="plan-open-training-label">${escapeHtml(getPrimaryActionText())}</span>
                     </button>
-                    <div class="action-hint" id="plan-action-hint">${escapeHtml(getActionHint())}</div>
                 </div>
             `;
 
@@ -946,7 +1464,7 @@
             }
 
             if (plan.is_rest_day) {
-                html += '<div class="rest-day-card">今天安排休息，专注恢复、营养与睡眠。</div>';
+                html += '<div class="rest-day-card">今天休息</div>';
             }
 
             if (trackableExercises.length) {
@@ -969,8 +1487,8 @@
                 const order = ['warmup', 'rest', 'log', 'note'];
                 const titles = {
                     warmup: '热身与激活',
-                    rest: '恢复安排',
-                    log: '训练记录',
+                    rest: '恢复',
+                    log: '记录',
                     note: '其他提示',
                 };
 
@@ -1014,7 +1532,7 @@
 
             const historyDiv = document.getElementById('training-history');
             if (!historyEntries.length) {
-                historyDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">历史记录会在完成训练后持续沉淀。</p>';
+                historyDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">暂无记录</p>';
                 return;
             }
 
@@ -1312,7 +1830,7 @@
 
         async function startTraining() {
             if (todayPlanData && todayPlanData.trackable_exercise_count === 0) {
-                alert('今天安排休息，当前页面展示恢复内容。');
+                alert('今天休息。');
                 return;
             }
 
@@ -1466,7 +1984,7 @@
 
         async function endTraining() {
             if (!sessionState || !sessionState.session) {
-                alert('训练页支持实时记录，开启后就能持续推进。');
+                alert('先开始训练。');
                 return;
             }
 
@@ -1501,7 +2019,7 @@
 
         async function completeSet() {
             if (!sessionState || !sessionState.session) {
-                alert('训练页支持实时记录，开启后就能持续推进。');
+                alert('先开始训练。');
                 return;
             }
 
@@ -1667,7 +2185,7 @@
                 const file = fileInput.files[0];
 
                 if (!file) {
-                    alert('选择 Excel 文件后即可开始同步。');
+                    alert('先选择文件。');
                     return;
                 }
 

@@ -7,729 +7,964 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="训练计划">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="description" content="科学训练计划管理系统 - 专业的健身计划管理工具">
-    <title>训练计划 - 今日训练</title>
+    <meta name="theme-color" content="#181512">
+    <meta name="description" content="个人训练计划台账，围绕当天主动作、阶段节奏和训练入口展开。">
+    <title>训练计划 - 今日台账</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Serif+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #2563eb;
-            --secondary-color: #64748b;
-            --success-color: #059669;
-            --warning-color: #d97706;
-            --danger-color: #dc2626;
-            --background-color: #f8fafc;
-            --card-background: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --bg: #efe5d2;
+            --bg-deep: #d8c6a1;
+            --panel: rgba(255, 250, 243, 0.88);
+            --panel-strong: #fffaf2;
+            --ink: #181512;
+            --muted: #665a4a;
+            --line: rgba(24, 21, 18, 0.12);
+            --accent: #e35a2d;
+            --accent-dark: #9f2f12;
+            --accent-soft: rgba(227, 90, 45, 0.12);
+            --success: #2d7f5f;
+            --warning: #bb7a14;
+            --danger: #c54d37;
+            --shadow: 0 28px 70px rgba(73, 47, 15, 0.12);
+            --shadow-soft: 0 18px 34px rgba(73, 47, 15, 0.08);
+            --display-font: "Barlow Condensed", sans-serif;
+            --body-font: "Noto Serif SC", serif;
         }
 
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* Performance optimizations */
-        .container, .day-card, .nav-date, .btn {
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-            -webkit-backface-visibility: hidden;
-            backface-visibility: hidden;
-            -webkit-perspective: 1000px;
-            perspective: 1000px;
-        }
-
-        /* Reduce motion for users who prefer it */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
+        html {
+            scroll-behavior: smooth;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: var(--card-background);
-            border-radius: 16px;
-            box-shadow: var(--shadow-lg);
-            overflow: hidden;
-        }
-
-        .header {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-            padding: 1.5rem 1.25rem;
-            text-align: center;
+            padding: 24px;
+            color: var(--ink);
+            font-family: var(--body-font);
+            background:
+                radial-gradient(circle at top left, rgba(255, 242, 217, 0.9), transparent 34%),
+                radial-gradient(circle at 85% 18%, rgba(227, 90, 45, 0.12), transparent 26%),
+                linear-gradient(140deg, #f3ebdb 0%, #e9dcc3 52%, #dcc8a3 100%);
             position: relative;
+            overflow-x: hidden;
         }
 
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 0.25rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(24, 21, 18, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(24, 21, 18, 0.025) 1px, transparent 1px);
+            background-size: 36px 36px;
+            opacity: 0.4;
+            pointer-events: none;
         }
 
-        .header .subtitle {
-            font-size: 1rem;
-            opacity: 0.9;
-            margin-bottom: 1rem;
-        }
-
-        .nav-dates {
-            display: flex;
-            justify-content: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-
-        .nav-date {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            text-decoration: none;
-            color: white;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
-            transition: all 0.3s ease;
-            font-size: 0.9rem;
-        }
-
-        .nav-date:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-        }
-
-        .nav-date.today {
-            background: var(--success-color);
-            border-color: var(--success-color);
-        }
-
-        .nav-date.selected {
-            background: white;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-
-        .content {
-            padding: 1.5rem 1.25rem;
-        }
-
-        .status-card {
-            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-            border-left: 3px solid var(--primary-color);
-            padding: 1rem 1.25rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-
-        .status-card h2 {
-            color: var(--primary-color);
-            font-size: 1.25rem;
-            margin-bottom: 0.25rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .status-card p {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin: 0;
-        }
-
-        .remarks-section {
-            background: #fefce8;
-            border: 1px solid #fbbf24;
-            border-radius: 8px;
-            padding: 1rem 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .remarks-section h3 {
-            color: var(--warning-color);
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1rem;
-        }
-
-        .remarks-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .remarks-list li {
-            padding: 0.3rem 0;
-            border-bottom: 1px solid #fef3c7;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        .remarks-list li:last-child {
-            border-bottom: none;
-        }
-
-        .remarks-list li::before {
-            content: "💡";
-            font-size: 1.2rem;
-        }
-
-        .plan-section {
-            background: #f0fdf4;
-            border: 2px solid #86efac;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 4px 12px rgba(134, 239, 172, 0.2);
-        }
-
-        .plan-section h3 {
-            color: var(--success-color);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        .custom-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-            border: 1px solid #e5e7eb;
-        }
-
-        .custom-table th {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-            padding: 0.8rem 0.5rem;
-            text-align: center;
-            font-weight: 600;
-            border: none;
-            font-size: 0.95rem;
-            letter-spacing: 0.5px;
-        }
-
-        .custom-table td {
-            padding: 0.9rem 0.75rem;
-            text-align: center;
-            border-bottom: 1px solid #f3f4f6;
-            transition: all 0.2s ease;
-            font-size: 1rem;
-            line-height: 1.4;
-        }
-
-        .custom-table tr:hover td {
-            background-color: #f8fafc;
-        }
-
-        .custom-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-secondary);
-        }
-
-        .empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        .empty-state h3 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .date-picker {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .date-picker label {
-            font-weight: 500;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        .date-picker input[type="date"] {
-            padding: 0.75rem 1rem;
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-            background: white;
-        }
-
-        .date-picker input[type="date"]:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .btn-secondary {
-            background: white;
-            color: var(--primary-color);
-            border: 2px solid var(--primary-color);
-        }
-
-        .btn-secondary:hover {
-            background: var(--primary-color);
-            color: white;
+        body::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.42), transparent 18%),
+                radial-gradient(circle at 75% 15%, rgba(255, 255, 255, 0.2), transparent 16%);
+            mix-blend-mode: screen;
+            pointer-events: none;
         }
 
         .flash-messages {
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 1000;
+            z-index: 20;
+            display: grid;
+            gap: 10px;
+            max-width: 320px;
         }
 
         .flash-message {
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            box-shadow: var(--shadow);
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            animation: slideIn 0.3s ease;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.38);
+            box-shadow: var(--shadow-soft);
+            backdrop-filter: blur(14px);
+            animation: slide-in 0.35s ease;
+            font-size: 0.95rem;
         }
 
         .flash-message.success {
-            background: var(--success-color);
-            color: white;
+            background: rgba(45, 127, 95, 0.9);
+            color: #fff;
         }
 
         .flash-message.error {
-            background: var(--danger-color);
-            color: white;
+            background: rgba(197, 77, 55, 0.92);
+            color: #fff;
         }
 
-        @keyframes slideIn {
+        .shell {
+            position: relative;
+            max-width: 1240px;
+            margin: 0 auto;
+            background: linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(255, 247, 236, 0.92));
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            border-radius: 34px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .shell::before {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 28px;
+            pointer-events: none;
+        }
+
+        .masthead {
+            position: relative;
+            padding: 34px 36px 30px;
+            background:
+                linear-gradient(115deg, rgba(255, 255, 255, 0.28), transparent 52%),
+                linear-gradient(140deg, #191613 0%, #241d16 55%, #332217 100%);
+            color: #f8f0e2;
+            overflow: hidden;
+        }
+
+        .masthead::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 80% 18%, rgba(255, 140, 92, 0.18), transparent 24%),
+                radial-gradient(circle at 10% 88%, rgba(255, 255, 255, 0.08), transparent 22%);
+            pointer-events: none;
+        }
+
+        .masthead-grid {
+            position: relative;
+            display: grid;
+            grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+            gap: 26px;
+            align-items: end;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(248, 240, 226, 0.92);
+            font-size: 0.78rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        .hero-title {
+            font-family: var(--body-font);
+            font-size: clamp(2.1rem, 4.5vw, 4.2rem);
+            line-height: 1.02;
+            letter-spacing: -0.04em;
+            margin-bottom: 14px;
+            max-width: 11ch;
+        }
+
+        .hero-aside {
+            position: relative;
+            align-self: stretch;
+            padding: 24px 22px;
+            border-radius: 26px 26px 10px 26px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(12px);
+        }
+
+        .hero-aside::after {
+            content: "";
+            position: absolute;
+            right: 22px;
+            top: 22px;
+            width: 52px;
+            height: 52px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(227, 90, 45, 0.95), rgba(159, 47, 18, 0.9));
+            box-shadow: 0 18px 30px rgba(227, 90, 45, 0.22);
+        }
+
+        .hero-aside-label {
+            font-size: 0.8rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(248, 240, 226, 0.58);
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .hero-aside-value {
+            font-family: var(--display-font);
+            font-size: clamp(2.6rem, 5vw, 4.8rem);
+            line-height: 0.95;
+            letter-spacing: 0.04em;
+            margin-bottom: 10px;
+        }
+
+        .rail {
+            position: relative;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 18px 36px 8px;
+            scrollbar-width: none;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0));
+        }
+
+        .rail::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-date {
+            flex: 0 0 auto;
+            min-width: 82px;
+            padding: 12px 16px;
+            border-radius: 18px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 250, 243, 0.9);
+            color: var(--muted);
+            text-decoration: none;
+            font-family: var(--display-font);
+            font-size: 1.08rem;
+            letter-spacing: 0.04em;
+            text-align: center;
+            transition: transform 0.24s ease, background 0.24s ease, color 0.24s ease, border-color 0.24s ease;
+        }
+
+        .nav-date:hover {
+            transform: translateY(-3px);
+            border-color: rgba(227, 90, 45, 0.28);
+            color: var(--accent-dark);
+        }
+
+        .nav-date.today {
+            background: rgba(45, 127, 95, 0.08);
+            color: var(--success);
+            border-color: rgba(45, 127, 95, 0.2);
+        }
+
+        .nav-date.selected {
+            background: linear-gradient(135deg, var(--accent), #f28d55);
+            border-color: transparent;
+            color: #fff8f0;
+            box-shadow: 0 16px 26px rgba(227, 90, 45, 0.2);
+        }
+
+        .content {
+            padding: 30px 36px 36px;
+        }
+
+        .mobile-priority {
+            display: none;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            position: relative;
+            min-height: 130px;
+            padding: 22px 22px 20px;
+            background: var(--panel);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 24px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .metric-card::before {
+            content: "";
+            position: absolute;
+            width: 72px;
+            height: 72px;
+            right: -14px;
+            top: -14px;
+            border-radius: 22px;
+            background: rgba(227, 90, 45, 0.08);
+        }
+
+        .metric-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.86rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 14px;
+        }
+
+        .metric-value {
+            font-family: var(--display-font);
+            font-size: clamp(1.8rem, 2vw, 2.5rem);
+            line-height: 0.95;
+            margin-bottom: 10px;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.85fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 28px;
+            box-shadow: var(--shadow-soft);
+            overflow: hidden;
+        }
+
+        .panel-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 18px;
+            padding: 22px 24px 18px;
+            border-bottom: 1px solid rgba(24, 21, 18, 0.08);
+        }
+
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--body-font);
+            font-size: 1.45rem;
+            letter-spacing: -0.03em;
+        }
+
+        .panel-title i {
+            color: var(--accent);
+        }
+
+        .remarks-wrap {
+            padding: 24px;
+        }
+
+        .remarks-section {
+            position: relative;
+            padding: 18px 20px 18px 58px;
+            background: linear-gradient(180deg, rgba(255, 240, 208, 0.62), rgba(255, 246, 227, 0.85));
+            border: 1px solid rgba(187, 122, 20, 0.18);
+            border-radius: 20px;
+        }
+
+        .remarks-section h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.02rem;
+            color: var(--warning);
+            margin-bottom: 10px;
+        }
+
+        .remarks-section::before {
+            content: "!";
+            position: absolute;
+            left: 18px;
+            top: 18px;
+            width: 28px;
+            height: 28px;
+            border-radius: 999px;
+            display: grid;
+            place-items: center;
+            background: rgba(187, 122, 20, 0.12);
+            color: var(--warning);
+            font-family: var(--display-font);
+            font-size: 1.2rem;
+        }
+
+        .remarks-list {
+            list-style: none;
+            display: grid;
+            gap: 10px;
+        }
+
+        .remarks-list li {
+            position: relative;
+            padding-left: 18px;
+            color: var(--muted);
+            line-height: 1.75;
+            font-size: 0.95rem;
+        }
+
+        .remarks-list li::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0.8em;
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--warning);
+        }
+
+        .plan-board {
+            padding: 24px;
+        }
+
+        .mobile-plan-list {
+            display: none;
+        }
+
+        .plan-mobile-card {
+            display: grid;
+            gap: 12px;
+            padding: 18px 18px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 253, 250, 0.94);
+            margin-bottom: 12px;
+        }
+
+        .plan-mobile-card:last-child {
+            margin-bottom: 0;
+        }
+
+        .plan-mobile-name {
+            color: var(--ink);
+            font-size: 1.18rem;
+            line-height: 1.45;
+        }
+
+        .plan-mobile-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .plan-mobile-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(227, 90, 45, 0.08);
+            color: var(--accent-dark);
+            font-size: 0.82rem;
+            line-height: 1.2;
+        }
+
+        .plan-mobile-pill strong {
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 253, 250, 0.95);
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+        }
+
+        .custom-table thead tr {
+            background: linear-gradient(135deg, #211b15 0%, #342619 100%);
+        }
+
+        .custom-table th {
+            padding: 16px 18px;
+            text-align: left;
+            color: rgba(255, 245, 230, 0.95);
+            font-size: 0.9rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .custom-table td {
+            padding: 18px;
+            border-bottom: 1px solid rgba(24, 21, 18, 0.08);
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #2b241c;
+            transition: background 0.24s ease, transform 0.24s ease;
+        }
+
+        .custom-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .custom-table tbody tr:hover td {
+            background: rgba(227, 90, 45, 0.05);
+        }
+
+        .empty-state {
+            padding: 34px 24px;
+            text-align: center;
+        }
+
+        .empty-state i {
+            font-size: 3.6rem;
+            color: rgba(24, 21, 18, 0.28);
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: var(--muted);
+            line-height: 1.8;
+        }
+
+        .action-stack {
+            display: grid;
+            gap: 16px;
+            padding: 24px;
+        }
+
+        .priority-card {
+            display: grid;
+            gap: 18px;
+            padding: 22px;
+            background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), rgba(255, 244, 229, 0.9));
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 24px;
+            box-shadow: var(--shadow-soft);
+            margin-bottom: 20px;
+        }
+
+        .priority-top {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .priority-cell {
+            display: grid;
+            gap: 6px;
+            padding: 14px 14px 12px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+        }
+
+        .priority-cell-label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .priority-cell-value {
+            color: var(--ink);
+            font-family: var(--display-font);
+            font-size: 1.45rem;
+            line-height: 1;
+        }
+
+        .priority-copy h2 {
+            font-size: 1.65rem;
+            line-height: 1.2;
+        }
+
+        .priority-actions {
+            display: grid;
+            gap: 12px;
+        }
+
+        .priority-secondary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .btn-compact {
+            padding: 13px 16px;
+            font-size: 0.95rem;
+        }
+
+        .date-picker {
+            display: grid;
+            gap: 10px;
+            padding: 18px 20px 20px;
+            background: rgba(255, 255, 255, 0.48);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            border-radius: 20px;
+        }
+
+        .date-picker label {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--muted);
+            font-size: 0.95rem;
+        }
+
+        .date-picker input[type="date"] {
+            width: 100%;
+            border: 1px solid rgba(24, 21, 18, 0.1);
+            border-radius: 16px;
+            padding: 14px 16px;
+            background: rgba(255, 253, 250, 0.96);
+            color: var(--ink);
+            font-size: 1rem;
+            font-family: var(--body-font);
+            outline: none;
+            transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease;
+        }
+
+        .date-picker input[type="date"]:focus {
+            border-color: rgba(227, 90, 45, 0.35);
+            box-shadow: 0 0 0 4px rgba(227, 90, 45, 0.1);
+        }
+
+        .action-buttons {
+            display: grid;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+            padding: 15px 18px;
+            border-radius: 18px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease, background 0.24s ease;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #f28d55);
+            color: #fff8f0;
+            box-shadow: 0 18px 24px rgba(227, 90, 45, 0.16);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.56);
+            color: var(--ink);
+            border-color: rgba(24, 21, 18, 0.1);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #221b15, #3a2a1c);
+            color: #fff7ea;
+        }
+
+        @keyframes slide-in {
             from {
-                transform: translateX(100%);
                 opacity: 0;
+                transform: translateY(-8px);
             }
             to {
-                transform: translateX(0);
                 opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        @media (max-width: 768px) {
-            body {
-                padding: 8px;
-                background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-            }
-
-            .container {
-                border-radius: 12px;
-                margin: 0;
-                max-width: 100%;
-            }
-
-            .header {
-                padding: 1.25rem 1rem;
-                background: linear-gradient(135deg, var(--primary-color), #3b82f6);
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-                margin-bottom: 0.25rem;
-            }
-
-            .header .subtitle {
-                font-size: 0.9rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .content {
-                padding: 0.75rem;
-            }
-
-            .status-card {
-                padding: 0.75rem 1rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .status-card h2 {
-                font-size: 1.1rem;
-                margin-bottom: 0.2rem;
-            }
-
-            .status-card p {
-                font-size: 0.8rem;
-            }
-
-            .remarks-section {
-                padding: 0.75rem 1rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .remarks-section h3 {
-                font-size: 0.9rem;
-                margin-bottom: 0.5rem;
-            }
-
-            .remarks-list li {
-                padding: 0.25rem 0;
-                font-size: 0.85rem;
-            }
-
-            .plan-section {
-                padding: 1rem;
-                margin-bottom: 1rem;
-                border-width: 1px;
-            }
-
-            .plan-section h3 {
-                font-size: 1rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .custom-table {
-                margin-top: 0.5rem;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-            }
-
-            .custom-table th {
-                padding: 0.6rem 0.4rem;
-                font-size: 0.8rem;
-            }
-
-            .custom-table td {
-                padding: 0.7rem 0.5rem;
-                font-size: 0.9rem;
-            }
-
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.5rem;
-                margin-top: 0.75rem;
-                padding-top: 0.75rem;
-            }
-
-            .date-picker {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 0.4rem;
-            }
-
-            .date-picker label {
-                text-align: center;
-                font-size: 0.85rem;
-            }
-
-            .date-picker input[type="date"] {
-                padding: 0.5rem;
-                font-size: 0.85rem;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-                width: 100%;
-                gap: 0.5rem;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-                padding: 0.6rem;
-                font-size: 0.85rem;
-            }
-
-            .nav-dates {
-                gap: 0.15rem;
-                padding: 0 0.25rem;
-            }
-
-            .nav-date {
-                padding: 0.25rem 0.4rem;
-                font-size: 0.7rem;
-                min-width: 28px;
-                border-radius: 6px;
-            }
-
-            .empty-state {
-                padding: 1.5rem 1rem;
-            }
-
-            .empty-state i {
-                font-size: 2.5rem;
-            }
-
-            .empty-state h3 {
-                font-size: 1.1rem;
-            }
-
-            .empty-state p {
-                font-size: 0.85rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            body {
-                padding: 5px;
-            }
-
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .nav-dates {
-                display: grid;
-                grid-template-columns: repeat(7, 1fr);
-                gap: 0.1rem;
-            }
-
-            .nav-date {
-                padding: 0.25rem 0.3rem;
-                font-size: 0.7rem;
-                border-radius: 4px;
-            }
-
-            .week-container {
+        @media (max-width: 980px) {
+            .masthead-grid,
+            .content-grid,
+            .overview-grid {
                 grid-template-columns: 1fr;
             }
 
-            .custom-table {
-                font-size: 0.75rem;
+            .hero-title {
+                max-width: none;
             }
 
-            .custom-table th,
-            .custom-table td {
-                padding: 0.3rem 0.4rem;
-                min-width: 50px;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 12px;
+            }
+
+            .shell {
+                border-radius: 24px;
+            }
+
+            .shell::before {
+                inset: 10px;
+                border-radius: 18px;
+            }
+
+            .masthead,
+            .content,
+            .rail {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .masthead {
+                padding-top: 22px;
+                padding-bottom: 22px;
+            }
+
+            .hero-aside {
+                padding: 18px;
+            }
+
+            .hero-aside::after {
+                width: 38px;
+                height: 38px;
+                border-radius: 12px;
+                top: 18px;
+                right: 18px;
+            }
+
+            .eyebrow {
+                margin-bottom: 14px;
+            }
+
+            .hero-title {
+                font-size: clamp(1.8rem, 9vw, 2.8rem);
+                max-width: 10ch;
+                margin-bottom: 10px;
+            }
+
+            .hero-aside-label {
+                margin-bottom: 6px;
+            }
+
+            .hero-aside-value {
+                font-size: clamp(2.1rem, 10vw, 3rem);
+                margin-bottom: 8px;
+            }
+
+            .rail {
+                padding-top: 14px;
+                padding-bottom: 2px;
+            }
+
+            .nav-date {
+                min-width: 72px;
+                padding: 11px 14px;
+                font-size: 1rem;
+            }
+
+            .content {
+                padding-top: 18px;
+            }
+
+            .mobile-priority {
+                display: block;
+            }
+
+            .overview-grid {
+                display: none;
+            }
+
+            .content-grid {
+                gap: 16px;
+            }
+
+            .content-grid > aside.panel {
+                display: none;
+            }
+
+            .metric-card,
+            .panel,
+            .date-picker {
+                border-radius: 20px;
+            }
+
+            .panel-head,
+            .remarks-wrap,
+            .plan-board,
+            .action-stack {
+                padding: 18px;
+            }
+
+            .panel-head {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .panel-title {
+                font-size: 1.32rem;
+            }
+
+            .action-stack {
+                padding-top: 0;
+            }
+
+            .date-picker {
+                display: none;
+            }
+
+            .action-buttons {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .action-buttons .btn-primary {
+                display: none;
+            }
+
+            .btn {
+                padding: 14px 16px;
+                border-radius: 16px;
+                font-size: 0.95rem;
+            }
+
+            .btn-success {
+                min-height: 58px;
+                font-size: 1rem;
+            }
+
+            .plan-board {
+                padding-top: 0;
+            }
+
+            .custom-table {
+                display: none;
+            }
+
+            .mobile-plan-list {
+                display: block;
+            }
+
+            .remarks-wrap {
+                padding-top: 0;
             }
 
             .flash-messages {
-                top: 10px;
-                right: 10px;
-                left: 10px;
-            }
-
-            .flash-message {
-                font-size: 0.85rem;
-                padding: 0.75rem 1rem;
+                left: 12px;
+                right: 12px;
+                max-width: none;
             }
         }
 
-        /* Touch-friendly improvements */
         @media (hover: none) and (pointer: coarse) {
             .nav-date,
             .btn {
-                min-height: 44px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .file-label {
-                min-height: 44px;
-            }
-
-            .custom-table tr {
-                min-height: 44px;
-            }
-
-            .day-card {
-                cursor: pointer;
+                min-height: 46px;
             }
         }
 
-        /* Safe area for modern phones with notches */
         @supports (padding: max(0px)) {
             body {
-                padding-left: max(8px, env(safe-area-inset-left));
-                padding-right: max(8px, env(safe-area-inset-right));
-                padding-top: max(8px, env(safe-area-inset-top));
-                padding-bottom: max(8px, env(safe-area-inset-bottom));
+                padding-left: max(12px, env(safe-area-inset-left));
+                padding-right: max(12px, env(safe-area-inset-right));
+                padding-top: max(12px, env(safe-area-inset-top));
+                padding-bottom: max(12px, env(safe-area-inset-bottom));
             }
         }
     </style>
     <script>
-        // 自动提交日期表单
         function submitForm() {
-            document.getElementById('dateForm').submit();
+            const input = document.getElementById('date');
+            if (input && input.value) {
+                window.location.href = `/?date=${input.value}`;
+            }
         }
 
-        // 页面加载完成后的初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 添加表格行悬停效果
-            const tableRows = document.querySelectorAll('.custom-table tbody tr');
-            tableRows.forEach(row => {
-                row.addEventListener('mouseenter', function() {
-                    this.style.transform = 'scale(1.01)';
-                });
-                row.addEventListener('mouseleave', function() {
-                    this.style.transform = 'scale(1)';
-                });
-            });
-
-            // 自动隐藏flash消息
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.animation = 'slideIn 0.3s ease reverse';
-                    setTimeout(() => message.remove(), 300);
-                }, 5000);
+                    message.style.opacity = '0';
+                    message.style.transform = 'translateY(-6px)';
+                    setTimeout(() => message.remove(), 260);
+                }, 4200);
+            });
+
+            const tableRows = document.querySelectorAll('.custom-table tbody tr');
+            tableRows.forEach((row, index) => {
+                row.style.animation = `slide-in 0.4s ease ${index * 0.04}s both`;
             });
         });
 
-        // 键盘快捷键
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft') {
-                const prevDate = document.querySelector('.nav-date.selected').previousElementSibling;
+        document.addEventListener('keydown', function(event) {
+            const selected = document.querySelector('.nav-date.selected');
+            if (!selected) {
+                return;
+            }
+
+            if (event.key === 'ArrowLeft') {
+                const prevDate = selected.previousElementSibling;
                 if (prevDate && prevDate.href) {
                     window.location.href = prevDate.href;
                 }
-            } else if (e.key === 'ArrowRight') {
-                const nextDate = document.querySelector('.nav-date.selected').nextElementSibling;
+            }
+
+            if (event.key === 'ArrowRight') {
+                const nextDate = selected.nextElementSibling;
                 if (nextDate && nextDate.href) {
                     window.location.href = nextDate.href;
                 }
             }
         });
 
-        // 移动端触摸优化
         let touchStartX = 0;
         let touchEndX = 0;
 
-        document.addEventListener('touchstart', function(e) {
-            touchStartX = e.changedTouches[0].screenX;
+        document.addEventListener('touchstart', function(event) {
+            touchStartX = event.changedTouches[0].screenX;
         });
 
-        document.addEventListener('touchend', function(e) {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-        });
-
-        function handleSwipe() {
-            const swipeThreshold = 50;
-            const diff = touchStartX - touchEndX;
-
-            if (Math.abs(diff) > swipeThreshold) {
-                if (diff > 0) {
-                    // 向左滑动 - 下一天
-                    const nextDate = document.querySelector('.nav-date.selected').nextElementSibling;
-                    if (nextDate && nextDate.href) {
-                        window.location.href = nextDate.href;
-                    }
-                } else {
-                    // 向右滑动 - 上一天
-                    const prevDate = document.querySelector('.nav-date.selected').previousElementSibling;
-                    if (prevDate && prevDate.href) {
-                        window.location.href = prevDate.href;
-                    }
-                }
-            }
-        }
-
-        // 双击日期快速切换
-        document.querySelectorAll('.nav-date').forEach(date => {
-            let lastTap = 0;
-            date.addEventListener('touchend', function(e) {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTap;
-                if (tapLength < 500 && tapLength > 0) {
-                    e.preventDefault();
-                    this.click();
-                }
-                lastTap = currentTime;
-            });
-        });
-
-        // 防止移动端双击缩放
-        let lastTouchEnd = 0;
         document.addEventListener('touchend', function(event) {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
+            touchEndX = event.changedTouches[0].screenX;
+            const diff = touchStartX - touchEndX;
+            if (Math.abs(diff) < 60) {
+                return;
             }
-            lastTouchEnd = now;
-        }, false);
 
-        // 优化移动端滚动性能
-        document.querySelectorAll('.custom-table').forEach(table => {
-            table.style.webkitOverflowScrolling = 'touch';
-            table.style.overscrollBehavior = 'contain';
-        });
+            const selected = document.querySelector('.nav-date.selected');
+            if (!selected) {
+                return;
+            }
+
+            if (diff > 0) {
+                const nextDate = selected.nextElementSibling;
+                if (nextDate && nextDate.href) {
+                    window.location.href = nextDate.href;
+                }
+                return;
+            }
+
+            const prevDate = selected.previousElementSibling;
+            if (prevDate && prevDate.href) {
+                window.location.href = prevDate.href;
+            }
+        }, false);
     </script>
 </head>
 <body>
-    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             <div class="flash-messages">
@@ -747,97 +982,171 @@
         {% endif %}
     {% endwith %}
 
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-dumbbell"></i> 训练计划</h1>
-            <p class="subtitle">科学训练，健康生活</p>
-
-            <!-- 日期导航 -->
-            <div class="nav-dates">
-                {% for nav_date in nav_dates %}
-                    <a href="/?date={{ nav_date.date }}"
-                       class="nav-date {% if nav_date.is_today %}today{% endif %} {% if nav_date.is_selected %}selected{% endif %}"
-                       title="{{ nav_date.date }}">
-                        {{ nav_date.display }}
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="content">
-            {% if has_plan %}
-                <!-- 状态卡片 -->
-                <div class="status-card">
-                    <h2><i class="fas fa-calendar-day"></i> {{ message }}</h2>
-                    <p>今日训练计划已准备就绪，加油！</p>
+    <main class="shell">
+        <section class="masthead">
+            <div class="masthead-grid">
+                <div>
+                    <span class="eyebrow"><i class="fas fa-bolt"></i> Today</span>
+                    <h1 class="hero-title">{{ date_str }}</h1>
                 </div>
+                <aside class="hero-aside">
+                    <span class="hero-aside-label">状态</span>
+                    <div class="hero-aside-value">{% if has_plan %}训练日{% else %}恢复日{% endif %}</div>
+                </aside>
+            </div>
+        </section>
 
-                <!-- 备注部分 -->
-                {% if remarks %}
-                    <div class="remarks-section">
-                        <h3><i class="fas fa-lightbulb"></i> 训练备注</h3>
-                        <ul class="remarks-list">
-                            {% for remark in remarks %}
-                                <li>{{ remark }}</li>
-                            {% endfor %}
-                        </ul>
+        <nav class="rail" aria-label="日期导航">
+            {% for nav_date in nav_dates %}
+                <a href="/?date={{ nav_date.date }}"
+                   class="nav-date {% if nav_date.is_today %}today{% endif %} {% if nav_date.is_selected %}selected{% endif %}"
+                   title="{{ nav_date.date }}">
+                    {{ nav_date.display }}
+                </a>
+            {% endfor %}
+        </nav>
+
+        <section class="content">
+            <section class="mobile-priority">
+                <div class="priority-card">
+                    <div class="priority-top">
+                        <div class="priority-cell">
+                            <div class="priority-cell-label">日期</div>
+                            <div class="priority-cell-value">{{ date_str[5:].replace('-', '.') }}</div>
+                        </div>
+                        <div class="priority-cell">
+                            <div class="priority-cell-label">状态</div>
+                            <div class="priority-cell-value">{% if has_plan %}训练{% else %}恢复{% endif %}</div>
+                        </div>
+                        <div class="priority-cell">
+                            <div class="priority-cell-label">动作数</div>
+                            <div class="priority-cell-value">{% if has_plan %}{{ plan_rows|length }}{% else %}0{% endif %}</div>
+                        </div>
                     </div>
-                {% endif %}
+                    <div class="priority-copy">
+                        <h2>{% if has_plan %}今天训练{% else %}今天恢复{% endif %}</h2>
+                    </div>
+                    <div class="priority-actions">
+                        <a href="/training?date={{ date_str }}" class="btn btn-success">
+                            <i class="fas fa-play"></i> 进入训练
+                        </a>
+                        <div class="priority-secondary">
+                            <a href="/week" class="btn btn-secondary btn-compact">
+                                <i class="fas fa-calendar-week"></i> 周视图
+                            </a>
+                            <a href="/upload" class="btn btn-primary btn-compact">
+                                <i class="fas fa-upload"></i> 上传
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                <!-- 训练计划部分 -->
-                <div class="plan-section">
-                    <h3><i class="fas fa-list-alt"></i> 训练内容</h3>
-                    <div class="table-wrapper">
-                        <table class="custom-table">
-                            <thead>
-                                <tr>
-                                    {% for header in plan_headers %}
-                                        <th>{{ header }}</th>
-                                    {% endfor %}
-                                </tr>
-                            </thead>
-                            <tbody>
+            <div class="overview-grid">
+                <article class="metric-card">
+                    <div class="metric-label"><i class="fas fa-calendar-day"></i> 日期</div>
+                    <div class="metric-value">{{ date_str }}</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-label"><i class="fas fa-flag-checkered"></i> 状态</div>
+                    <div class="metric-value">{% if has_plan %}训练日{% else %}恢复日{% endif %}</div>
+                </article>
+                <article class="metric-card">
+                    <div class="metric-label"><i class="fas fa-list-check"></i> 动作数</div>
+                    <div class="metric-value">{% if has_plan %}{{ plan_rows|length }}{% else %}0{% endif %}</div>
+                </article>
+            </div>
+
+            <div class="content-grid">
+                <section class="panel">
+                    <div class="panel-head">
+                        <div class="panel-title"><i class="fas fa-layer-group"></i><span>{% if has_plan %}今日训练内容{% else %}今日恢复安排{% endif %}</span></div>
+                    </div>
+
+                    {% if has_plan %}
+                        {% if remarks %}
+                            <div class="remarks-wrap">
+                                <div class="remarks-section">
+                                    <h3><i class="fas fa-lightbulb"></i> 训练备注</h3>
+                                    <ul class="remarks-list">
+                                        {% for remark in remarks %}
+                                            <li>{{ remark }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="plan-board">
+                            <div class="mobile-plan-list">
                                 {% for row in plan_rows %}
+                                    <article class="plan-mobile-card">
+                                        <h3 class="plan-mobile-name">{{ row[0] }}</h3>
+                                        <div class="plan-mobile-meta">
+                                            {% for cell in row[1:] %}
+                                                {% if cell or cell == 0 %}
+                                                    <span class="plan-mobile-pill">
+                                                        <strong>{{ plan_headers[loop.index] }}</strong>
+                                                        <span>{{ cell }}</span>
+                                                    </span>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </article>
+                                {% endfor %}
+                            </div>
+                            <table class="custom-table">
+                                <thead>
                                     <tr>
-                                        {% for cell in row %}
-                                            <td>{{ cell }}</td>
+                                        {% for header in plan_headers %}
+                                            <th>{{ header }}</th>
                                         {% endfor %}
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for row in plan_rows %}
+                                        <tr>
+                                            {% for cell in row %}
+                                                <td>{{ cell }}</td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="fas fa-couch"></i>
+                            <h3>休息日</h3>
+                            <p>{{ message }}</p>
+                        </div>
+                    {% endif %}
+                </section>
+
+                <aside class="panel">
+                    <div class="panel-head">
+                        <div class="panel-title"><i class="fas fa-arrow-right"></i><span>操作</span></div>
                     </div>
-                </div>
-            {% else %}
-                <!-- 休息日状态 -->
-                <div class="empty-state">
-                    <i class="fas fa-couch"></i>
-                    <h3>休息日</h3>
-                    <p>{{ message }}</p>
-                    <p>好好休息，为明天的训练储备能量！💪</p>
-                </div>
-            {% endif %}
-
-            <!-- 控制区域 -->
-            <div class="controls">
-                <div class="date-picker">
-                    <label for="date">📅 选择日期:</label>
-                    <input type="date" id="date" name="date" value="{{ date_str }}" required onchange="submitForm()">
-                </div>
-
-                <div class="action-buttons">
-                    <a href="/training?date={{ date_str }}" class="btn btn-success">
-                        <i class="fas fa-play"></i> 开始训练
-                    </a>
-                    <a href="/week" class="btn btn-secondary">
-                        <i class="fas fa-calendar-week"></i> 周视图
-                    </a>
-                    <a href="/upload" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> 上传计划
-                    </a>
-                </div>
+                    <div class="action-stack">
+                        <div class="date-picker">
+                            <label for="date"><i class="fas fa-calendar-alt"></i> 选择日期</label>
+                            <input type="date" id="date" name="date" value="{{ date_str }}" required onchange="submitForm()">
+                        </div>
+                        <div class="action-buttons">
+                            <a href="/training?date={{ date_str }}" class="btn btn-success">
+                                <i class="fas fa-play"></i> 开始训练
+                            </a>
+                            <a href="/week" class="btn btn-secondary">
+                                <i class="fas fa-calendar-week"></i> 查看周视图
+                            </a>
+                            <a href="/upload" class="btn btn-primary">
+                                <i class="fas fa-upload"></i> 上传计划
+                            </a>
+                        </div>
+                    </div>
+                </aside>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 </body>
 </html>
