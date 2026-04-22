@@ -2,6 +2,7 @@
 
 ## Project Structure & Module Organization
 - `app.py`: Flask app with routes for `/`, `/upload`, `/week`; imports Excel and saves to Supabase.
+- `docs/product_plan.md`: Product roadmap covering training loop, analysis, plan sync, and mobile priorities.
 - `templates/`: Jinja templates (`index.html`, `week.html`, `upload.html`).
 - `scripts/upload_workout_plans.py`: Pull the latest Kdocs workout sheet locally and replace `workout_plans` in Supabase.
 - `requirements.txt`: Python runtime dependencies.
