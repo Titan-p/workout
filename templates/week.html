@@ -118,19 +118,40 @@
 
         .hero {
             position: relative;
-            padding: 34px 36px 30px;
+            padding: 30px 36px 24px;
             color: #f9f0e2;
             background:
+                radial-gradient(circle at 78% 22%, rgba(227, 90, 45, 0.16), transparent 22%),
+                radial-gradient(circle at 14% 84%, rgba(255, 255, 255, 0.08), transparent 18%),
                 linear-gradient(120deg, rgba(255,255,255,0.18), transparent 45%),
                 linear-gradient(145deg, #181512 0%, #261d15 52%, #3b281a 100%);
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 52px 52px;
+            mask-image: linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0));
+            pointer-events: none;
         }
 
         .hero-grid {
             position: relative;
             display: grid;
-            grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.95fr);
-            gap: 26px;
-            align-items: end;
+            grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .hero-copy {
+            display: grid;
+            align-content: space-between;
+            justify-items: start;
+            gap: 16px;
         }
 
         .eyebrow {
@@ -138,6 +159,7 @@
             align-items: center;
             gap: 10px;
             padding: 7px 14px;
+            width: fit-content;
             border-radius: 999px;
             border: 1px solid rgba(255,255,255,0.16);
             background: rgba(255,255,255,0.08);
@@ -148,36 +170,66 @@
         }
 
         .hero-title {
-            font-size: clamp(2.2rem, 4.8vw, 4.4rem);
+            font-size: clamp(2.2rem, 4.8vw, 4.2rem);
             line-height: 1.03;
             letter-spacing: -0.05em;
-            margin-bottom: 12px;
-            max-width: 10ch;
+            margin-bottom: 0;
+            max-width: none;
         }
 
-        .hero-subtitle {
-            max-width: 56ch;
-            color: rgba(249, 240, 226, 0.74);
-            line-height: 1.8;
+        .hero-metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .hero-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            color: rgba(249, 240, 226, 0.92);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 0.92rem;
+            line-height: 1.2;
         }
 
         .week-panel {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 18px;
+            min-height: 188px;
             padding: 24px 22px;
-            border-radius: 26px;
-            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+            border-radius: 28px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.09), rgba(255,255,255,0.04));
             border: 1px solid rgba(255,255,255,0.12);
             backdrop-filter: blur(12px);
-            position: relative;
+            overflow: hidden;
+        }
+
+        .week-panel::before {
+            content: "";
+            position: absolute;
+            inset: auto -18px -28px auto;
+            width: 132px;
+            height: 132px;
+            border-radius: 34px;
+            background: radial-gradient(circle, rgba(227, 90, 45, 0.28), rgba(227, 90, 45, 0));
+            pointer-events: none;
         }
 
         .week-panel::after {
             content: "";
             position: absolute;
             right: 22px;
-            top: 22px;
-            width: 54px;
-            height: 54px;
-            border-radius: 18px;
+            top: 24px;
+            width: 62px;
+            height: 62px;
+            border-radius: 20px;
             background: linear-gradient(135deg, var(--accent), var(--accent-dark));
             box-shadow: 0 18px 30px rgba(227, 90, 45, 0.24);
         }
@@ -199,18 +251,43 @@
             margin-bottom: 12px;
         }
 
-        .week-panel-note {
-            color: rgba(249, 240, 226, 0.72);
-            line-height: 1.75;
-            max-width: 24ch;
+        .week-panel-meta {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .week-panel-metric {
+            display: grid;
+            gap: 4px;
+            min-width: 88px;
+        }
+
+        .week-panel-metric strong {
+            font-family: var(--display-font);
+            font-size: 1.7rem;
+            line-height: 0.92;
+        }
+
+        .week-panel-metric span {
+            color: rgba(249, 240, 226, 0.62);
+            font-size: 0.78rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
         }
 
         .hero-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            padding: 18px 36px 10px;
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 184px minmax(0, 1fr) 184px;
+            align-items: stretch;
+            gap: 14px;
+            padding: 18px 36px;
             background: linear-gradient(180deg, rgba(255,255,255,0.52), rgba(255,255,255,0));
         }
 
@@ -219,19 +296,24 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            min-width: 160px;
-            padding: 14px 18px;
-            border-radius: 18px;
+            width: 100%;
+            min-width: 0;
+            min-height: 86px;
+            padding: 15px 20px;
+            border-radius: 20px;
             text-decoration: none;
-            border: 1px solid rgba(24, 21, 18, 0.1);
-            background: rgba(255, 252, 246, 0.9);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 251, 244, 0.82);
             color: var(--ink);
-            transition: transform 0.24s ease, background 0.24s ease, border-color 0.24s ease;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 16px 28px rgba(73, 47, 15, 0.08);
+            transition: transform 0.24s ease, background 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
         }
 
         .nav-btn:hover {
             transform: translateY(-3px);
             border-color: rgba(227, 90, 45, 0.24);
+            box-shadow: 0 18px 34px rgba(73, 47, 15, 0.12);
         }
 
         .nav-btn.is-hidden {
@@ -239,13 +321,127 @@
         }
 
         .week-info {
-            display: inline-flex;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
             align-items: center;
-            gap: 12px;
-            padding: 14px 18px;
-            border-radius: 18px;
+            gap: 14px;
+            width: 100%;
+            min-height: 86px;
+            padding: 15px 18px;
+            border-radius: 22px;
             border: 1px solid rgba(24, 21, 18, 0.08);
             background: rgba(255,255,255,0.74);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 16px 28px rgba(73, 47, 15, 0.06);
+        }
+
+        .week-info i {
+            font-size: 1.2rem;
+            color: var(--accent-dark);
+        }
+
+        .week-info-copy {
+            display: grid;
+            gap: 3px;
+        }
+
+        .week-info-label {
+            color: var(--muted);
+            font-size: 0.78rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .week-info-title {
+            font-family: var(--display-font);
+            font-size: 1.5rem;
+            line-height: 0.94;
+            letter-spacing: 0.05em;
+        }
+
+        .week-info-range {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 64px;
+            padding: 10px 12px;
+            border-radius: 16px;
+            background: rgba(227, 90, 45, 0.1);
+            color: var(--accent-dark);
+            font-family: var(--display-font);
+            font-size: 1.1rem;
+            letter-spacing: 0.04em;
+        }
+
+        .week-ribbon {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 12px;
+            padding: 0 36px 24px;
+        }
+
+        .ribbon-day {
+            display: grid;
+            gap: 10px;
+            padding: 14px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            color: var(--ink);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 251, 244, 0.78);
+            box-shadow: 0 14px 24px rgba(73, 47, 15, 0.05);
+            transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        }
+
+        .ribbon-day:hover {
+            transform: translateY(-3px);
+            border-color: rgba(227, 90, 45, 0.22);
+            box-shadow: 0 20px 34px rgba(73, 47, 15, 0.08);
+        }
+
+        .ribbon-day.is-train {
+            background: linear-gradient(180deg, rgba(255, 250, 245, 0.92), rgba(255, 245, 239, 0.88));
+        }
+
+        .ribbon-day.is-rest {
+            background: linear-gradient(180deg, rgba(251, 254, 252, 0.94), rgba(243, 251, 247, 0.9));
+        }
+
+        .ribbon-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ribbon-day-name {
+            color: var(--muted);
+            font-size: 0.84rem;
+            letter-spacing: 0.08em;
+        }
+
+        .ribbon-state {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            padding: 5px 8px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            line-height: 1.2;
+        }
+
+        .ribbon-day.is-train .ribbon-state {
+            background: rgba(227, 90, 45, 0.12);
+            color: var(--accent-dark);
+        }
+
+        .ribbon-day.is-rest .ribbon-state {
+            background: rgba(45, 127, 95, 0.12);
+            color: var(--success);
+        }
+
+        .ribbon-date {
             font-family: var(--display-font);
             font-size: 1.4rem;
             letter-spacing: 0.04em;
@@ -255,16 +451,16 @@
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 18px;
-            padding: 22px 36px 0;
+            padding: 0 36px;
         }
 
         .stat-card {
             position: relative;
-            min-height: 118px;
+            min-height: 124px;
             padding: 22px;
-            background: var(--panel);
+            background: linear-gradient(180deg, rgba(255, 252, 247, 0.95), rgba(255, 247, 238, 0.9));
             border: 1px solid rgba(24, 21, 18, 0.08);
-            border-radius: 24px;
+            border-radius: 26px;
             box-shadow: var(--shadow-soft);
             overflow: hidden;
         }
@@ -272,11 +468,11 @@
         .stat-card::before {
             content: "";
             position: absolute;
-            right: -16px;
-            top: -18px;
-            width: 82px;
-            height: 82px;
-            border-radius: 26px;
+            right: -18px;
+            top: -16px;
+            width: 92px;
+            height: 92px;
+            border-radius: 30px;
             background: rgba(227, 90, 45, 0.08);
         }
 
@@ -290,33 +486,64 @@
 
         .stat-number {
             font-family: var(--display-font);
-            font-size: clamp(2.2rem, 3vw, 3rem);
+            font-size: clamp(2.4rem, 3.1vw, 3.1rem);
             line-height: 0.95;
-            margin-bottom: 8px;
-        }
-
-        .stat-note {
-            color: var(--muted);
-            line-height: 1.7;
-            font-size: 0.94rem;
+            margin-bottom: 10px;
         }
 
         .content {
             padding: 24px 36px 36px;
         }
 
+        .schedule-section + .schedule-section {
+            margin-top: 28px;
+        }
+
+        .section-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 18px;
+            margin-bottom: 14px;
+        }
+
+        .section-kicker {
+            color: var(--muted);
+            font-size: 0.76rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            letter-spacing: -0.04em;
+        }
+
         .week-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            align-items: start;
             gap: 18px;
+        }
+
+        .training-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .recovery-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .day-card {
             position: relative;
+            display: flex;
+            flex-direction: column;
+            align-self: start;
+            gap: 16px;
             padding: 22px;
-            background: var(--panel);
             border: 1px solid rgba(24, 21, 18, 0.08);
-            border-radius: 28px;
+            border-radius: 30px;
             box-shadow: var(--shadow-soft);
             overflow: hidden;
             transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
@@ -330,6 +557,18 @@
             background: rgba(24, 21, 18, 0.08);
         }
 
+        .day-card::after {
+            content: "";
+            position: absolute;
+            right: -28px;
+            top: -32px;
+            width: 138px;
+            height: 138px;
+            border-radius: 40px;
+            background: rgba(227, 90, 45, 0.07);
+            pointer-events: none;
+        }
+
         .day-card.exercise-day::before {
             background: linear-gradient(180deg, var(--accent), rgba(227, 90, 45, 0.3));
         }
@@ -338,10 +577,30 @@
             background: linear-gradient(180deg, var(--success), rgba(45, 127, 95, 0.24));
         }
 
+        .day-card.exercise-day {
+            background: linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(255, 246, 238, 0.92));
+        }
+
+        .day-card.rest-day {
+            background: linear-gradient(180deg, rgba(252, 255, 253, 0.96), rgba(244, 251, 247, 0.92));
+        }
+
         .day-card:hover {
             transform: translateY(-4px);
             border-color: rgba(227, 90, 45, 0.2);
             box-shadow: 0 24px 38px rgba(73, 47, 15, 0.12);
+        }
+
+        .day-topline {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .day-main {
+            flex: 1;
+            min-width: 0;
         }
 
         .day-header {
@@ -349,7 +608,14 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: 14px;
-            margin-bottom: 16px;
+        }
+
+        .day-kicker {
+            color: var(--muted);
+            font-size: 0.74rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
         }
 
         .day-title {
@@ -370,6 +636,24 @@
         .day-date {
             color: var(--muted);
             font-size: 0.94rem;
+        }
+
+        .day-number {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            place-items: center;
+            flex: 0 0 62px;
+            width: 62px;
+            height: 62px;
+            border-radius: 20px;
+            font-family: var(--display-font);
+            font-size: 1.65rem;
+            line-height: 1;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: 0 12px 22px rgba(73, 47, 15, 0.06);
         }
 
         .day-badge {
@@ -395,11 +679,38 @@
             color: var(--success);
         }
 
+        .day-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .day-meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(24, 21, 18, 0.08);
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.2;
+        }
+
+        .day-meta-pill i {
+            color: var(--accent-dark);
+        }
+
+        .day-meta-pill.is-rest i {
+            color: var(--success);
+        }
+
         .phase-info {
-            margin-bottom: 14px;
             padding: 14px 16px;
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.52);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.6);
             border: 1px solid rgba(24, 21, 18, 0.08);
         }
 
@@ -528,7 +839,7 @@
         }
 
         .custom-table th {
-            padding: 12px 14px;
+            padding: 11px 14px;
             color: rgba(255, 245, 230, 0.95);
             text-align: left;
             font-size: 0.82rem;
@@ -537,7 +848,7 @@
         }
 
         .custom-table td {
-            padding: 14px;
+            padding: 12px 14px;
             border-bottom: 1px solid rgba(24, 21, 18, 0.08);
             font-size: 0.96rem;
             line-height: 1.65;
@@ -550,27 +861,6 @@
 
         .custom-table tbody tr:hover td {
             background: rgba(227, 90, 45, 0.04);
-        }
-
-        .empty-day {
-            padding: 16px 0 4px;
-            text-align: center;
-        }
-
-        .empty-day i {
-            font-size: 2.8rem;
-            color: rgba(45, 127, 95, 0.34);
-            margin-bottom: 12px;
-        }
-
-        .empty-day h4 {
-            font-size: 1.3rem;
-            margin-bottom: 8px;
-        }
-
-        .empty-day p {
-            color: var(--muted);
-            line-height: 1.75;
         }
 
         .controls {
@@ -625,8 +915,28 @@
                 grid-template-columns: 1fr;
             }
 
-            .hero-title {
-                max-width: none;
+            .training-grid,
+            .recovery-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .week-ribbon {
+                display: flex;
+                overflow-x: auto;
+                padding-bottom: 26px;
+                scrollbar-width: none;
+            }
+
+            .week-ribbon::-webkit-scrollbar {
+                display: none;
+            }
+
+            .ribbon-day {
+                flex: 0 0 168px;
             }
         }
 
@@ -646,24 +956,43 @@
 
             .hero,
             .hero-controls,
+            .week-ribbon,
             .stats-grid,
             .content {
                 padding-left: 18px;
                 padding-right: 18px;
             }
 
+            .section-heading {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
             .hero {
                 padding-top: 24px;
             }
 
-            .hero-controls {
-                flex-direction: column;
+            .week-panel {
+                min-height: auto;
             }
 
             .nav-btn,
             .week-info,
             .btn-primary {
                 width: 100%;
+            }
+
+            .week-info {
+                grid-template-columns: auto minmax(0, 1fr);
+            }
+
+            .week-info-range {
+                justify-self: stretch;
+                grid-column: 1 / -1;
+            }
+
+            .ribbon-day {
+                flex-basis: 148px;
             }
 
             .custom-table {
@@ -676,6 +1005,16 @@
 
             .day-actions {
                 grid-template-columns: 1fr;
+            }
+
+            .day-topline {
+                flex-direction: column;
+            }
+
+            .day-number {
+                width: 58px;
+                height: 58px;
+                font-size: 1.45rem;
             }
 
             .flash-messages {
@@ -723,13 +1062,29 @@
     <main class="board">
         <section class="hero">
             <div class="hero-grid">
-                <div>
+                <div class="hero-copy">
                     <span class="eyebrow"><i class="fas fa-calendar-week"></i> Week</span>
                     <h1 class="hero-title">第 {{ current_week_offset + 1 }} 周</h1>
+                    <div class="hero-metrics">
+                        <span class="hero-chip"><i class="fas fa-dumbbell"></i> 训练 {{ training_days }} 天</span>
+                        <span class="hero-chip"><i class="fas fa-leaf"></i> 恢复 {{ 7 - training_days }} 天</span>
+                    </div>
                 </div>
                 <aside class="week-panel">
-                    <span class="week-panel-label">训练天数</span>
-                    <div class="week-panel-value">{{ training_days }}</div>
+                    <div>
+                        <span class="week-panel-label">本周密度</span>
+                        <div class="week-panel-value">{{ "%.0f"|format((training_days / 7) * 100) }}%</div>
+                    </div>
+                    <div class="week-panel-meta">
+                        <div class="week-panel-metric">
+                            <strong>{{ training_days }}</strong>
+                            <span>训练日</span>
+                        </div>
+                        <div class="week-panel-metric">
+                            <strong>{{ 7 - training_days }}</strong>
+                            <span>恢复日</span>
+                        </div>
+                    </div>
                 </aside>
             </div>
         </section>
@@ -740,12 +1095,28 @@
             </a>
             <div class="week-info">
                 <i class="fas fa-wave-square"></i>
-                <span>第 {{ current_week_offset + 1 }} 周</span>
+                <div class="week-info-copy">
+                    <span class="week-info-label">排班视图</span>
+                    <span class="week-info-title">第 {{ current_week_offset + 1 }} 周</span>
+                </div>
+                <span class="week-info-range">{{ training_days }}/7</span>
             </div>
             <a href="/week?week={{ next_week }}" class="nav-btn">
                 下一周 <i class="fas fa-chevron-right"></i>
             </a>
         </div>
+
+        <section class="week-ribbon">
+            {% for date_str, day_data in week_plan.items() %}
+                <a href="/?date={{ date_str }}" class="ribbon-day {% if day_data.has_plan %}is-train{% else %}is-rest{% endif %}">
+                    <div class="ribbon-top">
+                        <span class="ribbon-day-name">{{ day_data.day_name }}</span>
+                        <span class="ribbon-state">{% if day_data.has_plan %}训练{% else %}恢复{% endif %}</span>
+                    </div>
+                    <strong class="ribbon-date">{{ day_data.date_obj.strftime("%-m/%-d") }}</strong>
+                </a>
+            {% endfor %}
+        </section>
 
         <section class="stats-grid">
             <article class="stat-card">
@@ -763,42 +1134,61 @@
         </section>
 
         <section class="content">
-            <div class="week-container">
-                {% for date_str, day_data in week_plan.items() %}
-                    <article class="day-card {% if day_data.has_plan %}exercise-day{% else %}rest-day{% endif %}">
-                        <div class="day-header">
-                            <div>
-                                <div class="day-title">
-                                    <a class="day-link" href="/?date={{ date_str }}">{{ day_data.day_name }}</a>
-                                </div>
-                                <div class="day-date">{{ day_data.date_obj.strftime("%-m月%-d日") }}</div>
-                            </div>
-                            <div class="day-badge {% if day_data.has_plan %}badge-exercise{% else %}badge-rest{% endif %}">
-                                {% if day_data.has_plan %}训练日{% else %}休息日{% endif %}
-                            </div>
-                        </div>
-
+            <!-- Keep week view copy-free: labels, metrics, and actions only. -->
+            <section class="schedule-section">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker">Training Days</div>
+                        <h2 class="section-title">训练安排</h2>
+                    </div>
+                </div>
+                <div class="week-container training-grid">
+                    {% for date_str, day_data in week_plan.items() %}
                         {% if day_data.has_plan %}
-                            <div class="phase-info">
-                                <div class="phase-title">{{ day_data.phase }}</div>
-                            </div>
-
-                            {% if day_data.remarks %}
-                                <div class="remarks-section">
-                                    <h4 class="remarks-title"><i class="fas fa-lightbulb"></i> 训练备注</h4>
-                                    <ul class="remarks-list">
-                                        {% for remark in day_data.remarks %}
-                                            <li>{{ remark }}</li>
-                                        {% endfor %}
-                                    </ul>
+                            {% set preview_limit = 4 %}
+                            {% set preview_rows = day_data.plan_rows[:preview_limit] %}
+                            <article class="day-card exercise-day">
+                                <div class="day-topline">
+                                    <div class="day-main">
+                                        <div class="day-header">
+                                            <div>
+                                                <div class="day-kicker">训练安排</div>
+                                                <div class="day-title">
+                                                    <a class="day-link" href="/?date={{ date_str }}">{{ day_data.day_name }}</a>
+                                                </div>
+                                                <div class="day-date">{{ day_data.date_obj.strftime("%-m月%-d日") }}</div>
+                                            </div>
+                                            <div class="day-badge badge-exercise">训练日</div>
+                                        </div>
+                                        <div class="day-meta">
+                                            <span class="day-meta-pill"><i class="fas fa-dumbbell"></i> {{ day_data.plan_rows|length }} 项内容</span>
+                                            {% if day_data.remarks %}
+                                                <span class="day-meta-pill"><i class="fas fa-note-sticky"></i> {{ day_data.remarks|length }} 条备注</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="day-number">{{ day_data.date_obj.strftime("%d") }}</div>
                                 </div>
-                            {% endif %}
 
-                            {% if day_data.plan_rows %}
+                                <div class="phase-info">
+                                    <div class="phase-title">{{ day_data.phase }}</div>
+                                </div>
+
+                                {% if day_data.remarks %}
+                                    <div class="remarks-section">
+                                        <h4 class="remarks-title"><i class="fas fa-lightbulb"></i> 训练备注</h4>
+                                        <ul class="remarks-list">
+                                            {% for remark in day_data.remarks %}
+                                                <li>{{ remark }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+
                                 <div class="plan-section">
                                     <h4 class="plan-title"><i class="fas fa-list-alt"></i> 训练内容</h4>
                                     <div class="plan-mobile-list">
-                                        {% for row in day_data.plan_rows %}
+                                        {% for row in preview_rows %}
                                             <article class="plan-mobile-card">
                                                 <h5 class="plan-mobile-name">{{ row[0] }}</h5>
                                                 <div class="plan-mobile-meta">
@@ -823,7 +1213,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {% for row in day_data.plan_rows %}
+                                            {% for row in preview_rows %}
                                                 <tr>
                                                     {% for cell in row %}
                                                         <td>{{ cell }}</td>
@@ -841,21 +1231,51 @@
                                         </a>
                                     </div>
                                 </div>
-                            {% endif %}
-                        {% else %}
-                            <div class="empty-day">
-                                <i class="fas fa-seedling"></i>
-                                <h4>恢复日</h4>
-                            </div>
-                            <div class="day-actions">
-                                <a href="/?date={{ date_str }}" class="btn btn-secondary">
-                                    <i class="fas fa-calendar-day"></i> 查看当天
-                                </a>
-                            </div>
+                            </article>
                         {% endif %}
-                    </article>
-                {% endfor %}
-            </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="schedule-section">
+                <div class="section-heading">
+                    <div>
+                        <div class="section-kicker">Recovery Days</div>
+                        <h2 class="section-title">恢复安排</h2>
+                    </div>
+                </div>
+                <div class="week-container recovery-grid">
+                    {% for date_str, day_data in week_plan.items() %}
+                        {% if not day_data.has_plan %}
+                            <article class="day-card rest-day">
+                                <div class="day-topline">
+                                    <div class="day-main">
+                                        <div class="day-header">
+                                            <div>
+                                                <div class="day-kicker">恢复安排</div>
+                                                <div class="day-title">
+                                                    <a class="day-link" href="/?date={{ date_str }}">{{ day_data.day_name }}</a>
+                                                </div>
+                                                <div class="day-date">{{ day_data.date_obj.strftime("%-m月%-d日") }}</div>
+                                            </div>
+                                            <div class="day-badge badge-rest">休息日</div>
+                                        </div>
+                                        <div class="day-meta">
+                                            <span class="day-meta-pill is-rest"><i class="fas fa-leaf"></i> 恢复与活动</span>
+                                        </div>
+                                    </div>
+                                    <div class="day-number">{{ day_data.date_obj.strftime("%d") }}</div>
+                                </div>
+                                <div class="day-actions">
+                                    <a href="/?date={{ date_str }}" class="btn btn-secondary">
+                                        <i class="fas fa-calendar-day"></i> 查看当天
+                                    </a>
+                                </div>
+                            </article>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </section>
 
             <div class="controls">
                 <a href="/" class="btn btn-primary">
