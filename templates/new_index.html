@@ -298,7 +298,7 @@
 
         .tab-strip {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 10px;
             padding: 10px;
             border-radius: 26px;
@@ -402,6 +402,7 @@
 
         .plan-stage,
         .training-stage,
+        .load-stage,
         .upload-stage,
         .history-stage {
             position: relative;
@@ -698,8 +699,86 @@
             gap: 8px;
         }
 
+        .label-with-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
         .input-group:last-child {
             grid-column: 1 / -1;
+        }
+
+        .session-summary-group {
+            display: grid;
+            gap: 18px;
+            padding: 18px 20px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+        }
+
+        .session-load-grid {
+            align-items: start;
+        }
+
+        .finish-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(24, 19, 15, 0.48);
+            backdrop-filter: blur(8px);
+            z-index: 60;
+        }
+
+        .finish-modal-backdrop.active {
+            display: flex;
+        }
+
+        .finish-modal {
+            width: min(920px, 100%);
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            padding: 28px;
+            border-radius: 28px;
+            background:
+                linear-gradient(145deg, rgba(255, 250, 244, 0.98) 0%, rgba(247, 239, 229, 0.96) 100%);
+            box-shadow: 0 28px 56px rgba(24, 19, 15, 0.28);
+        }
+
+        .finish-modal-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .finish-modal-copy h3 {
+            margin-bottom: 8px;
+            color: var(--gray-900);
+        }
+
+        .finish-modal-copy p {
+            margin: 0;
+            color: var(--gray-600);
+            line-height: 1.6;
+        }
+
+        .finish-modal-close {
+            width: 44px;
+            height: 44px;
+            border-radius: 999px;
+            font-size: 1.1rem;
+            padding: 0;
+        }
+
+        .finish-modal-actions {
+            margin-top: 20px;
         }
 
         .input-group label {
@@ -709,7 +788,14 @@
             letter-spacing: 0.04em;
         }
 
+        .input-hint {
+            font-size: 0.82rem;
+            color: var(--gray-500);
+            line-height: 1.5;
+        }
+
         .input-group input,
+        .input-group select,
         .input-group textarea {
             width: 100%;
             padding: 15px 16px;
@@ -722,6 +808,7 @@
         }
 
         .input-group input:focus,
+        .input-group select:focus,
         .input-group textarea:focus {
             outline: none;
             border-color: rgba(220, 90, 48, 0.34);
@@ -733,6 +820,209 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 14px;
+        }
+
+        .load-toolbar {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            width: min(100%, 420px);
+        }
+
+        .load-summary-grid {
+            margin-bottom: 24px;
+        }
+
+        .load-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .load-day-card {
+            padding: 20px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            box-shadow: 0 16px 28px rgba(79, 48, 14, 0.07);
+        }
+
+        .load-day-card.load-band-0_200 {
+            background: linear-gradient(180deg, rgba(246, 252, 236, 0.96), rgba(236, 247, 221, 0.92));
+        }
+
+        .load-day-card.load-band-200_400 {
+            background: linear-gradient(180deg, rgba(255, 248, 228, 0.96), rgba(250, 237, 195, 0.92));
+        }
+
+        .load-day-card.load-band-400_600 {
+            background: linear-gradient(180deg, rgba(255, 238, 217, 0.96), rgba(251, 221, 180, 0.92));
+        }
+
+        .load-day-card.load-band-600_800 {
+            background: linear-gradient(180deg, rgba(255, 226, 212, 0.96), rgba(248, 200, 173, 0.92));
+        }
+
+        .load-day-card.load-band-800_1000,
+        .load-day-card.load-band-1000_plus {
+            background: linear-gradient(180deg, rgba(252, 218, 210, 0.96), rgba(242, 181, 175, 0.92));
+        }
+
+        .load-day-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .load-day-date {
+            font-size: 1.02rem;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+
+        .load-day-weekday {
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+
+        .load-band-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(24, 19, 15, 0.08);
+            color: var(--gray-700);
+            font-size: 0.82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .load-total {
+            font-family: var(--display-font);
+            font-size: 2.4rem;
+            line-height: 0.92;
+            color: var(--gray-900);
+        }
+
+        .load-total-label {
+            color: var(--gray-600);
+            margin-top: 6px;
+            margin-bottom: 14px;
+        }
+
+        .load-metric-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .load-metric-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.76);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            color: var(--gray-700);
+            font-size: 0.84rem;
+            font-weight: 700;
+        }
+
+        .load-session-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .load-session-item {
+            padding: 12px 14px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.66);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+        }
+
+        .load-session-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+
+        .load-session-meta {
+            margin-top: 6px;
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            line-height: 1.65;
+        }
+
+        .load-note {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(24, 19, 15, 0.08);
+            color: var(--gray-700);
+            line-height: 1.7;
+        }
+
+        .load-empty {
+            color: var(--gray-500);
+            margin-top: 12px;
+        }
+
+        .load-trend-list {
+            display: grid;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .load-trend-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.74);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+        }
+
+        .load-trend-range {
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .load-trend-value {
+            font-family: var(--display-font);
+            font-size: 1.55rem;
+            line-height: 0.95;
+            color: var(--gray-900);
+        }
+
+        .quick-score-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .quick-score-btn {
+            border: 1px solid rgba(24, 19, 15, 0.12);
+            border-radius: 999px;
+            padding: 7px 10px;
+            background: rgba(255, 255, 255, 0.86);
+            color: var(--gray-700);
+            font: inherit;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .quick-score-btn:hover {
+            transform: translateY(-1px);
+            border-color: rgba(220, 90, 48, 0.28);
+            background: rgba(255, 246, 237, 0.96);
         }
 
         .upload-area {
@@ -793,6 +1083,20 @@
             margin-bottom: 14px;
         }
 
+        .history-session + .history-session {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px dashed rgba(24, 19, 15, 0.12);
+        }
+
+        .history-session-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
         .history-date {
             display: inline-flex;
             align-items: center;
@@ -803,6 +1107,32 @@
             background: rgba(220, 90, 48, 0.1);
             color: var(--primary-dark);
             font-weight: 700;
+        }
+
+        .history-session-title {
+            color: var(--gray-600);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .history-delete-btn {
+            border: 1px solid rgba(187, 78, 59, 0.18);
+            border-radius: 999px;
+            padding: 8px 12px;
+            background: rgba(255, 244, 241, 0.94);
+            color: var(--danger);
+            font: inherit;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+        }
+
+        .history-delete-btn:hover {
+            transform: translateY(-1px);
+            background: rgba(255, 236, 231, 0.96);
+            box-shadow: 0 10px 18px rgba(187, 78, 59, 0.14);
         }
 
         .exercise-list {
@@ -819,6 +1149,21 @@
         .exercise-list li:last-child {
             border-bottom: none;
             padding-bottom: 0;
+        }
+
+        .history-summary {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            background: rgba(220, 90, 48, 0.08);
+            color: var(--gray-700);
+            line-height: 1.7;
+        }
+
+        .history-summary strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--primary-dark);
         }
 
         .btn {
@@ -845,6 +1190,13 @@
             background: linear-gradient(135deg, var(--primary), #ef8f57);
             color: #fff9f1;
             box-shadow: 0 16px 28px rgba(220, 90, 48, 0.18);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.82);
+            color: var(--gray-800);
+            border: 1px solid rgba(24, 19, 15, 0.08);
+            box-shadow: 0 14px 24px rgba(79, 48, 14, 0.08);
         }
 
         .btn-success {
@@ -926,7 +1278,9 @@
             .hero-stats,
             .setup-grid,
             .field-grid,
-            .session-actions {
+            .session-actions,
+            .load-toolbar,
+            .load-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -958,6 +1312,13 @@
                 grid-template-columns: 1fr;
             }
 
+            .load-day-head,
+            .load-session-title,
+            .load-trend-item,
+            .history-session-head {
+                flex-direction: column;
+            }
+
             .status-badge {
                 justify-self: start;
             }
@@ -969,6 +1330,19 @@
             .quick-links {
                 display: grid;
                 grid-template-columns: 1fr;
+            }
+
+            .finish-modal-backdrop {
+                padding: 14px;
+            }
+
+            .finish-modal {
+                padding: 20px;
+                max-height: calc(100vh - 28px);
+            }
+
+            .finish-modal-head {
+                flex-direction: column;
             }
         }
     </style>
@@ -1010,7 +1384,8 @@
                 </div>
                 <aside class="hero-panel">
                     <span class="hero-panel-label">状态</span>
-                    <div class="hero-panel-value">训练页</div>
+                    <div id="hero-status-value" class="hero-panel-value">训练页</div>
+                    <div id="hero-status-note" class="hero-panel-note">正在同步当前状态</div>
                 </aside>
             </div>
         </section>
@@ -1024,6 +1399,10 @@
                 <button class="nav-tab" data-tab="training" onclick="switchTab(event, 'training')">
                     <i class="fas fa-play"></i>
                     开始训练
+                </button>
+                <button class="nav-tab" data-tab="load" onclick="switchTab(event, 'load')">
+                    <i class="fas fa-chart-line"></i>
+                    负荷管理
                 </button>
                 <button class="nav-tab" data-tab="upload" onclick="switchTab(event, 'upload')">
                     <i class="fas fa-upload"></i>
@@ -1080,12 +1459,12 @@
                         <div id="active-session" class="session-live" style="display: none;">
                             <div class="current-exercise">
                                 <h2 id="current-exercise-name">深蹲</h2>
-                                <p class="set-info">第 <span id="current-set">1</span> 组</p>
+                                <p class="set-info" id="current-set-text">第 1 组</p>
                                 <p class="set-info" id="current-target-info"></p>
                                 <ul class="detail-list" id="current-details"></ul>
                             </div>
 
-                            <div class="field-grid">
+                            <div id="set-log-fields" class="field-grid">
                                 <div class="input-group">
                                     <label for="actual-reps">实际完成次数（可选）</label>
                                     <input type="number" id="actual-reps" placeholder="需要记录时直接输入">
@@ -1097,22 +1476,54 @@
                                 </div>
 
                                 <div class="input-group">
+                                    <label for="rpe">RPE（1-10）</label>
+                                    <input type="number" id="rpe" min="1" max="10" step="0.5" placeholder="输入主观强度">
+                                </div>
+
+                                <div class="input-group">
                                     <label for="notes">训练感受（可选）</label>
                                     <textarea id="notes" rows="3" placeholder="记录这一组的感觉、节奏或技术点"></textarea>
                                 </div>
                             </div>
 
                             <div class="session-actions">
-                                <button class="btn btn-success btn-large" onclick="completeSet()">
+                                <button id="complete-set-btn" class="btn btn-success btn-large" onclick="completeSet()">
                                     <i class="fas fa-check"></i>
                                     完成这组
                                 </button>
-                                <button class="btn btn-danger btn-large" onclick="endTraining()">
+                                <button id="finish-training-btn" class="btn btn-danger btn-large" onclick="endTraining()">
                                     <i class="fas fa-flag-checkered"></i>
                                     结束训练
                                 </button>
                             </div>
                         </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="load-tab" class="tab-content">
+                <section class="card">
+                    <div class="card-head">
+                        <div>
+                            <h2 class="card-title"><i class="fas fa-chart-line"></i> 负荷管理</h2>
+                            <p class="card-kicker">按周查看每日 sRPE-TL、周总负荷、波动和近 8 周趋势。</p>
+                        </div>
+                        <div class="load-toolbar">
+                            <button type="button" class="btn btn-secondary" onclick="shiftLoadMonitorWeek(-1)">
+                                <i class="fas fa-chevron-left"></i>
+                                上一周
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="resetLoadMonitorWeek()">
+                                <i class="fas fa-bullseye"></i>
+                                当前周
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="shiftLoadMonitorWeek(1)">
+                                下一周
+                            </button>
+                        </div>
+                    </div>
+                    <div id="load-monitor" class="load-stage">
+                        <p style="text-align: center; color: var(--gray-600);">正在加载负荷视图...</p>
                     </div>
                 </section>
             </div>
@@ -1164,6 +1575,109 @@
         <button class="btn btn-danger" onclick="skipRest()">跳过休息</button>
     </div>
 
+    <div id="finish-training-modal" class="finish-modal-backdrop" onclick="handleFinishModalBackdrop(event)">
+        <div class="finish-modal">
+            <div class="finish-modal-head">
+                <div class="finish-modal-copy">
+                    <h3>结束训练记录</h3>
+                    <p>这里记录整次训练的负荷和总结。训练中的每组数据已经单独保存。</p>
+                </div>
+                <button type="button" class="btn btn-secondary finish-modal-close" onclick="closeFinishTrainingModal()" aria-label="关闭">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="session-summary-group">
+                <div class="field-grid session-load-grid">
+                    <div class="input-group">
+                        <label for="session-name">主项目</label>
+                        <input type="text" id="session-name" placeholder="例如 深蹲 / 力量房 / 球场专项">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="session-slot">训练时段</label>
+                        <select id="session-slot">
+                            <option value="">选择时段</option>
+                            <option value="morning">上午</option>
+                            <option value="afternoon">下午</option>
+                            <option value="evening">晚上</option>
+                            <option value="extra">额外</option>
+                        </select>
+                        <div class="input-hint">页面会按当前时间自动预填，支持手动调整。</div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="session-rpe">Session RPE（1-10）</label>
+                        <input type="number" id="session-rpe" min="1" max="10" step="0.5" value="1" placeholder="输入整次训练平均强度">
+                        <div class="input-hint">请填写 1 到 10。默认值为 1。</div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="duration-minutes">训练时长（分钟）</label>
+                        <input type="number" id="duration-minutes" min="1" step="1" placeholder="例如 75">
+                        <div class="input-hint">默认按开始训练到结束训练的总时长自动计算。</div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="body-weight-kg">体重（kg）</label>
+                        <input type="number" id="body-weight-kg" min="1" step="0.1" placeholder="例如 76.4">
+                    </div>
+
+                    <div class="input-group">
+                        <div class="label-with-actions">
+                            <label for="fatigue-score">疲劳评分（0-10）</label>
+                        </div>
+                        <input type="number" id="fatigue-score" min="0" max="10" step="0.5" placeholder="主观疲劳">
+                        <div class="quick-score-row">
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 0)">0</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 2)">2</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 4)">4</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 6)">6</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 8)">8</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('fatigue-score', 10)">10</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <div class="label-with-actions">
+                            <label for="pain-score">疼痛评分（0-10）</label>
+                        </div>
+                        <input type="number" id="pain-score" min="0" max="10" step="0.5" placeholder="关节或肌肉反馈">
+                        <div class="quick-score-row">
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 0)">0</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 2)">2</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 4)">4</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 6)">6</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 8)">8</button>
+                            <button type="button" class="quick-score-btn" onclick="setQuickScore('pain-score', 10)">10</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="daily-note">当日备注</label>
+                        <textarea id="daily-note" rows="3" placeholder="记录体感、恢复、疼痛位置和当日补充说明"></textarea>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="session-summary">训练总结</label>
+                    <textarea id="session-summary" rows="3" placeholder="记录整体状态、动作质量、疲劳反馈和下次调整"></textarea>
+                </div>
+            </div>
+
+            <div class="session-actions finish-modal-actions">
+                <button type="button" class="btn btn-secondary btn-large" onclick="closeFinishTrainingModal()">
+                    <i class="fas fa-arrow-left"></i>
+                    返回训练
+                </button>
+                <button id="submit-finish-training-btn" type="button" class="btn btn-danger btn-large" onclick="submitFinishTraining()">
+                    <i class="fas fa-flag-checkered"></i>
+                    保存总结并结束
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let sessionState = null;
         let restTimerHandle = null;
@@ -1174,6 +1688,11 @@
         let lastPlanSyncAt = 0;
         let lastSessionSyncAt = 0;
         let lastHistorySyncAt = 0;
+        let loadMonitorWeekData = null;
+        let loadMonitorDayData = null;
+        let lastLoadMonitorWeekSyncAt = 0;
+        let lastLoadMonitorDaySyncAt = 0;
+        let activeLoadMonitorWeekOffset = 0;
 
         const CACHE_VERSION = '2026-04-22';
         const CACHE_TTL_MS = {
@@ -1186,6 +1705,8 @@
             plan: 8000,
             history: 12000,
             session: 4000,
+            loadMonitorWeek: 12000,
+            loadMonitorDay: 12000,
         };
         const selectedDate = '{{ selected_date }}';
         const activeDate = selectedDate || getLocalIsoDate();
@@ -1229,6 +1750,93 @@
             return hasDisplayValue(value) && Number.isFinite(Number(value));
         }
 
+        function isLiveSessionStatus(status) {
+            return status === 'active' || status === 'ready_to_finish';
+        }
+
+        function getCurrentTabName() {
+            return document.querySelector('.nav-tab.active')?.dataset.tab || 'plan';
+        }
+
+        function updateHeroStatus(tabName = getCurrentTabName()) {
+            const valueElement = document.getElementById('hero-status-value');
+            const noteElement = document.getElementById('hero-status-note');
+            if (!valueElement || !noteElement) {
+                return;
+            }
+
+            const trackableCount = todayPlanData?.trackable_exercise_count;
+            const restTimer = document.getElementById('rest-timer');
+            const restTimeDisplay = document.getElementById('rest-time-display');
+            const finishModal = document.getElementById('finish-training-modal');
+
+            let value = '今日计划';
+            let note = '正在同步当前状态';
+
+            if (finishModal?.classList.contains('active')) {
+                value = '结束记录';
+                note = '填写 Session RPE、总结和恢复反馈';
+            } else if (tabName === 'training') {
+                if (restTimer?.classList.contains('active')) {
+                    value = '休息计时';
+                    note = `剩余 ${restTimeDisplay?.textContent || '0'} 秒`;
+                } else if (sessionState?.status === 'active') {
+                    value = '训练进行中';
+                    const exerciseText = sessionState.current_exercise || '当前动作';
+                    const setText = hasDisplayValue(sessionState.current_set)
+                        ? `第 ${sessionState.current_set} 组`
+                        : '继续训练';
+                    note = `${exerciseText} · ${setText}`;
+                } else if (sessionState?.status === 'ready_to_finish') {
+                    value = '等待结束';
+                    note = '训练组已完成，记录总结和负荷';
+                } else if (trackableCount === 0) {
+                    value = '恢复日';
+                    note = '今天安排恢复';
+                } else {
+                    value = '待开始';
+                    note = '准备开始今天的训练';
+                }
+            } else if (tabName === 'plan') {
+                if (sessionState?.status === 'active') {
+                    value = '训练进行中';
+                    note = sessionState.current_exercise || '训练会话已开始';
+                } else if (sessionState?.status === 'ready_to_finish') {
+                    value = '等待结束';
+                    note = '训练组已完成，进入结束记录';
+                } else if (trackableCount === 0) {
+                    value = '恢复日';
+                    note = '今天安排恢复';
+                } else if (todayPlanData) {
+                    value = todayPlanData.phase || '今日计划';
+                    note = `${trackableCount ?? 0} 个核心动作`;
+                } else {
+                    value = '计划同步中';
+                    note = '正在加载今日训练内容';
+                }
+            } else if (tabName === 'load') {
+                value = '负荷管理';
+                if (hasNumericValue(loadMonitorDayData?.day_total_load)) {
+                    note = `今日负荷 ${formatMetricValue(loadMonitorDayData.day_total_load)}`;
+                } else if (hasNumericValue(loadMonitorWeekData?.summary?.week_total_load)) {
+                    note = `本周总负荷 ${formatMetricValue(loadMonitorWeekData.summary.week_total_load)}`;
+                } else {
+                    note = '正在同步负荷视图';
+                }
+            } else if (tabName === 'history') {
+                value = '训练历史';
+                note = historyLoaded
+                    ? `${historyEntries.length} 条记录已同步`
+                    : '正在整理历史记录';
+            } else if (tabName === 'upload') {
+                value = '上传计划';
+                note = '同步 Excel 到每日计划';
+            }
+
+            valueElement.textContent = value;
+            noteElement.textContent = note;
+        }
+
         function formatRestLabel(seconds) {
             const value = Number(seconds);
             if (!Number.isFinite(value) || value < 0) {
@@ -1246,6 +1854,196 @@
                 return `休息 ${minutes} 分 ${remainder} 秒`;
             }
             return `休息 ${value} 秒`;
+        }
+
+        function formatRpeLabel(rpe) {
+            const value = Number(rpe);
+            if (!Number.isFinite(value)) {
+                return '';
+            }
+            return `RPE ${value}`;
+        }
+
+        function formatMetricNumber(value, digits = 2) {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) {
+                return '';
+            }
+
+            if (Number.isInteger(numeric)) {
+                return String(numeric);
+            }
+
+            return numeric
+                .toFixed(digits)
+                .replace(/\.00$/, '')
+                .replace(/(\.\d)0$/, '$1');
+        }
+
+        function formatMetricValue(value, unit = '') {
+            const text = formatMetricNumber(value);
+            if (!text) {
+                return '准备中';
+            }
+            return `${text}${unit}`;
+        }
+
+        function parseIsoDate(value) {
+            if (!value) {
+                return null;
+            }
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return null;
+            }
+            return parsed;
+        }
+
+        function guessSessionSlot(referenceDate = new Date()) {
+            const date = referenceDate instanceof Date ? referenceDate : new Date(referenceDate);
+            if (Number.isNaN(date.getTime())) {
+                return 'evening';
+            }
+            const hour = date.getHours();
+            if (hour >= 5 && hour < 12) {
+                return 'morning';
+            }
+            if (hour >= 12 && hour < 18) {
+                return 'afternoon';
+            }
+            if (hour >= 18 && hour <= 23) {
+                return 'evening';
+            }
+            return 'extra';
+        }
+
+        function calculateElapsedMinutes(startedAt, endedAt = new Date()) {
+            const startDate = parseIsoDate(startedAt);
+            const endDate = endedAt instanceof Date ? endedAt : parseIsoDate(endedAt);
+            if (!startDate || !endDate) {
+                return null;
+            }
+            const elapsedMs = Math.max(endDate.getTime() - startDate.getTime(), 0);
+            return Math.max(1, Math.ceil(elapsedMs / 60000));
+        }
+
+        function getLoadBandLabel(band) {
+            const labels = {
+                '0_200': '0-200',
+                '200_400': '200-400',
+                '400_600': '400-600',
+                '600_800': '600-800',
+                '800_1000': '800-1000',
+                '1000_plus': '1000+',
+            };
+            return labels[band] || '待统计';
+        }
+
+        function setInputValueIfEmpty(id, value) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            if (String(element.value || '').trim()) {
+                return;
+            }
+            if (!hasDisplayValue(value) && value !== 0) {
+                return;
+            }
+            element.value = value;
+        }
+
+        function setSelectValueIfEmpty(id, value) {
+            const element = document.getElementById(id);
+            if (!element || element.value) {
+                return;
+            }
+            if (!hasDisplayValue(value)) {
+                return;
+            }
+            element.value = value;
+        }
+
+        function setQuickScore(id, value) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            element.value = value;
+        }
+
+        function resetFinishTrainingFields() {
+            setInputValue('session-name', '');
+            setSelectValue('session-slot', '');
+            setInputValue('session-rpe', '1');
+            setInputValue('duration-minutes', '');
+            setInputValue('body-weight-kg', '');
+            setInputValue('fatigue-score', '');
+            setInputValue('pain-score', '');
+            setInputValue('daily-note', '');
+            setInputValue('session-summary', '');
+        }
+
+        function setInputValue(id, value) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            element.value = value;
+        }
+
+        function setSelectValue(id, value) {
+            const element = document.getElementById(id);
+            if (!element) {
+                return;
+            }
+            element.value = value;
+        }
+
+        function openFinishTrainingModal() {
+            const modal = document.getElementById('finish-training-modal');
+            if (!modal) {
+                return;
+            }
+            prefillLoadMonitorFields();
+            modal.classList.add('active');
+            updateHeroStatus();
+            const sessionRpeInput = document.getElementById('session-rpe');
+            if (sessionRpeInput) {
+                sessionRpeInput.focus();
+                sessionRpeInput.select();
+            }
+        }
+
+        function closeFinishTrainingModal() {
+            const modal = document.getElementById('finish-training-modal');
+            if (!modal) {
+                return;
+            }
+            modal.classList.remove('active');
+            updateHeroStatus();
+        }
+
+        function handleFinishModalBackdrop(event) {
+            if (event.target && event.target.id === 'finish-training-modal') {
+                closeFinishTrainingModal();
+            }
+        }
+
+        function formatHistoryTime(value) {
+            if (!value) {
+                return '';
+            }
+
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) {
+                return '';
+            }
+
+            return date.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit',
+            });
         }
 
         function cacheKey(scope, suffix = '') {
@@ -1313,7 +2111,7 @@
         }
 
         function getPrimaryActionText() {
-            return sessionState && sessionState.status === 'active' ? '继续训练' : '进入训练';
+            return sessionState && isLiveSessionStatus(sessionState.status) ? '继续训练' : '进入训练';
         }
 
         function getActionHint() {
@@ -1415,7 +2213,7 @@
 
             updateTrainingAvailability(plan);
 
-            if (restInput && (!sessionState || sessionState.status !== 'active')) {
+            if (restInput && (!sessionState || !isLiveSessionStatus(sessionState.status))) {
                 clearManualRest();
                 if (hasNumericValue(plan?.default_rest_seconds)) {
                     restInput.value = Number(plan.default_rest_seconds);
@@ -1424,6 +2222,7 @@
 
             if (!exercises.length) {
                 planDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">暂无计划</p>';
+                updateHeroStatus();
                 return;
             }
 
@@ -1506,6 +2305,7 @@
 
             planDiv.innerHTML = html;
             updatePlanAction();
+            updateHeroStatus();
         }
 
         function formatHistoryLine(log) {
@@ -1515,6 +2315,10 @@
             }
             if (hasDisplayValue(log.actual_weight)) {
                 parts.push(escapeHtml(log.actual_weight));
+            }
+            const rpeLabel = formatRpeLabel(log.rpe);
+            if (rpeLabel) {
+                parts.push(escapeHtml(rpeLabel));
             }
             const restLabel = formatRestLabel(log.rest_seconds);
             if (restLabel) {
@@ -1533,6 +2337,7 @@
             const historyDiv = document.getElementById('training-history');
             if (!historyEntries.length) {
                 historyDiv.innerHTML = '<p style="text-align: center; color: var(--gray-600);">暂无记录</p>';
+                updateHeroStatus();
                 return;
             }
 
@@ -1547,35 +2352,324 @@
 
             let html = '';
             historyByDate.forEach((logs, date) => {
+                const sessions = new Map();
+                logs.forEach(log => {
+                    const key = log.session_id || `${date}:${log.exercise_name || 'session'}`;
+                    if (!sessions.has(key)) {
+                        sessions.set(key, []);
+                    }
+                    sessions.get(key).push(log);
+                });
+
                 html += `
                     <div class="history-item">
                         <div class="history-date">${escapeHtml(date)}</div>
-                        <ul class="exercise-list">
                 `;
 
-                const exerciseGroups = new Map();
-                logs.forEach(log => {
-                    const key = log.exercise_name || '未命名动作';
-                    if (!exerciseGroups.has(key)) {
-                        exerciseGroups.set(key, []);
-                    }
-                    exerciseGroups.get(key).push(log);
-                });
+                sessions.forEach(sessionLogs => {
+                    const sessionId = sessionLogs[0]?.session_id || '';
+                    const sessionLabel = formatHistoryTime(sessionLogs[0]?.log_date) || '训练记录';
+                    const sessionSummary = sessionLogs.find(log => hasDisplayValue(log.session_notes))?.session_notes || '';
+                    const exerciseGroups = new Map();
+                    const deleteButtonHtml = sessionId
+                        ? `<button type="button" class="history-delete-btn" onclick='deleteHistorySession(${JSON.stringify(sessionId)})'>删除</button>`
+                        : '';
 
-                exerciseGroups.forEach((exerciseLogs, exerciseName) => {
-                    const setsInfo = exerciseLogs
-                        .map(log => formatHistoryLine(log))
-                        .join(', ');
-                    html += `<li><strong>${escapeHtml(exerciseName)}</strong>: ${setsInfo}</li>`;
+                    sessionLogs.forEach(log => {
+                        const key = log.exercise_name || '未命名动作';
+                        if (!exerciseGroups.has(key)) {
+                            exerciseGroups.set(key, []);
+                        }
+                        exerciseGroups.get(key).push(log);
+                    });
+
+                    html += `
+                        <div class="history-session">
+                            <div class="history-session-head">
+                                <div class="history-session-title">${escapeHtml(sessionLabel)}</div>
+                                ${deleteButtonHtml}
+                            </div>
+                            <ul class="exercise-list">
+                    `;
+
+                    exerciseGroups.forEach((exerciseLogs, exerciseName) => {
+                        const setsInfo = exerciseLogs
+                            .map(log => formatHistoryLine(log))
+                            .join(', ');
+                        html += `<li><strong>${escapeHtml(exerciseName)}</strong>: ${setsInfo}</li>`;
+                    });
+
+                    html += '</ul>';
+
+                    if (sessionSummary) {
+                        html += `
+                            <div class="history-summary">
+                                <strong>训练总结</strong>
+                                <div>${formatWithBreaks(sessionSummary)}</div>
+                            </div>
+                        `;
+                    }
+
+                    html += '</div>';
                 });
 
                 html += `
-                        </ul>
                     </div>
                 `;
             });
 
             historyDiv.innerHTML = html;
+            updateHeroStatus();
+        }
+
+        async function deleteHistorySession(sessionId) {
+            if (!sessionId) {
+                return;
+            }
+
+            const confirmed = window.confirm('删除后会移除这次训练的组记录和会话记录。');
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/training-history/${encodeURIComponent(sessionId)}`, {
+                    method: 'DELETE',
+                });
+                const result = await response.json();
+                if (!response.ok || result.error) {
+                    alert(result.error || '删除失败。');
+                    return;
+                }
+
+                historyEntries = historyEntries.filter(entry => entry.session_id !== sessionId);
+                writeHistoryCache(historyEntries);
+                renderTrainingHistory(historyEntries);
+
+                if (sessionState?.session?.session_id === sessionId) {
+                    if (restTimerHandle) {
+                        clearInterval(restTimerHandle);
+                        restTimerHandle = null;
+                    }
+                    document.getElementById('rest-timer').classList.remove('active');
+                    sessionState = null;
+                    writeSessionCache(null);
+                    showTrainingSession();
+                }
+
+                await Promise.all([
+                    ensureHistoryLoaded({ force: true }),
+                    loadLoadMonitorDay({ force: true }),
+                    loadLoadMonitorWeek({ force: true }),
+                    checkCurrentSession({ force: true }),
+                ]);
+                alert('训练记录已删除。');
+            } catch (error) {
+                console.error('删除训练记录失败:', error);
+                alert('删除稍后重试。');
+            }
+        }
+
+        function prefillLoadMonitorFields() {
+            const sessionPayload = sessionState?.session || {};
+            const dayPayload = loadMonitorDayData || {};
+            const defaultInputs = dayPayload.defaults || {};
+            const suggestedName = sessionPayload.session_name || sessionState?.suggested_session_name;
+            const suggestedDuration = sessionPayload.duration_minutes || calculateElapsedMinutes(sessionPayload.started_at);
+            const suggestedSlot = sessionPayload.session_slot || guessSessionSlot();
+            const suggestedSessionRpe = hasDisplayValue(sessionPayload.session_rpe)
+                ? formatMetricNumber(sessionPayload.session_rpe, 1)
+                : 1;
+            const suggestedBodyWeight = hasDisplayValue(dayPayload.body_weight_kg)
+                ? dayPayload.body_weight_kg
+                : defaultInputs.body_weight_kg;
+            const suggestedFatigue = hasDisplayValue(dayPayload.fatigue_score)
+                ? dayPayload.fatigue_score
+                : defaultInputs.fatigue_score;
+            const suggestedPain = hasDisplayValue(dayPayload.pain_score)
+                ? dayPayload.pain_score
+                : defaultInputs.pain_score;
+
+            setInputValueIfEmpty('session-name', suggestedName);
+            setSelectValueIfEmpty('session-slot', suggestedSlot);
+            setInputValueIfEmpty('session-rpe', suggestedSessionRpe);
+            setInputValueIfEmpty('duration-minutes', suggestedDuration);
+            setInputValueIfEmpty('body-weight-kg', formatMetricNumber(suggestedBodyWeight, 1));
+            setInputValueIfEmpty('fatigue-score', formatMetricNumber(suggestedFatigue, 1));
+            setInputValueIfEmpty('pain-score', formatMetricNumber(suggestedPain, 1));
+            setInputValueIfEmpty('daily-note', dayPayload.daily_note || '');
+            setInputValueIfEmpty('session-summary', sessionPayload.notes || '');
+        }
+
+        function renderLoadMonitor(payload) {
+            const container = document.getElementById('load-monitor');
+            if (!container) {
+                return;
+            }
+
+            if (!payload || !Array.isArray(payload.days)) {
+                container.innerHTML = '<p style="text-align: center; color: var(--gray-600);">暂无负荷数据</p>';
+                updateHeroStatus();
+                return;
+            }
+
+            const summary = payload.summary || {};
+            const summaryItems = [
+                { label: '周范围', value: `${payload.week_start} ~ ${payload.week_end}` },
+                { label: '本周总负荷', value: formatMetricValue(summary.week_total_load) },
+                { label: '平均单日负荷', value: formatMetricValue(summary.avg_daily_load) },
+                { label: '负荷标准差', value: formatMetricValue(summary.daily_load_stddev) },
+                { label: '4 周 Chronic', value: formatMetricValue(summary.chronic_load_4w) },
+                { label: '前 3 周 Chronic', value: formatMetricValue(summary.chronic_load_prev3w) },
+                { label: '耦合 ACWR', value: formatMetricValue(summary.acwr_coupled) },
+                { label: '非耦合 ACWR', value: formatMetricValue(summary.acwr_uncoupled) },
+            ];
+
+            let html = '<div class="summary-grid load-summary-grid">';
+            html += summaryItems.map(item => `
+                <div class="summary-card">
+                    <div class="summary-label">${escapeHtml(item.label)}</div>
+                    <div class="summary-value">${escapeHtml(item.value)}</div>
+                </div>
+            `).join('');
+            html += '</div>';
+
+            html += '<div class="section-title">本周每日负荷</div>';
+            html += '<div class="load-grid">';
+
+            payload.days.forEach(day => {
+                const sessions = Array.isArray(day.sessions) ? day.sessions : [];
+                const metricChips = [];
+                if (hasNumericValue(day.body_weight_kg)) {
+                    metricChips.push(`体重 ${formatMetricValue(day.body_weight_kg, 'kg')}`);
+                }
+                if (hasNumericValue(day.fatigue_score)) {
+                    metricChips.push(`疲劳 ${formatMetricValue(day.fatigue_score)}`);
+                }
+                if (hasNumericValue(day.pain_score)) {
+                    metricChips.push(`疼痛 ${formatMetricValue(day.pain_score)}`);
+                }
+
+                const sessionHtml = sessions.length
+                    ? `
+                        <div class="load-session-list">
+                            ${sessions.map(session => `
+                                <div class="load-session-item">
+                                    <div class="load-session-title">
+                                        <span>${escapeHtml(session.session_slot_label || '未设置')} · ${escapeHtml(session.session_name || '训练会话')}</span>
+                                        <span>${escapeHtml(formatMetricValue(session.session_load))}</span>
+                                    </div>
+                                    <div class="load-session-meta">
+                                        RPE ${escapeHtml(formatMetricValue(session.session_rpe))} · ${escapeHtml(formatMetricValue(session.duration_minutes, ' 分钟'))}
+                                    </div>
+                                    ${session.summary ? `<div class="load-note">${formatWithBreaks(session.summary)}</div>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `
+                    : '<p class="load-empty">当天暂无完成会话</p>';
+
+                html += `
+                    <div class="load-day-card load-band-${escapeHtml(day.load_band || '0_200')}">
+                        <div class="load-day-head">
+                            <div>
+                                <div class="load-day-date">${escapeHtml(day.date || '')}</div>
+                                <div class="load-day-weekday">${escapeHtml(day.weekday || '')}</div>
+                            </div>
+                            <span class="load-band-tag">${escapeHtml(getLoadBandLabel(day.load_band))}</span>
+                        </div>
+                        <div class="load-total">${escapeHtml(formatMetricValue(day.day_total_load))}</div>
+                        <div class="load-total-label">Day Load</div>
+                        ${metricChips.length ? `<div class="load-metric-row">${metricChips.map(item => `<span class="load-metric-chip">${escapeHtml(item)}</span>`).join('')}</div>` : ''}
+                        ${day.daily_note ? `<div class="load-note">${formatWithBreaks(day.daily_note)}</div>` : ''}
+                        ${sessionHtml}
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+
+            html += '<div class="section-title">近 8 周趋势</div>';
+            html += '<div class="load-trend-list">';
+            html += (Array.isArray(payload.trend) ? payload.trend : []).map(item => `
+                <div class="load-trend-item">
+                    <div class="load-trend-range">${escapeHtml(item.week_start)} ~ ${escapeHtml(item.week_end)}</div>
+                    <div class="load-trend-value">${escapeHtml(formatMetricValue(item.week_total_load))}</div>
+                </div>
+            `).join('');
+            html += '</div>';
+
+            container.innerHTML = html;
+            updateHeroStatus();
+        }
+
+        async function loadLoadMonitorDay(options = {}) {
+            const { force = false } = options;
+            const now = Date.now();
+            if (!force && now - lastLoadMonitorDaySyncAt < REFRESH_WINDOW_MS.loadMonitorDay) {
+                prefillLoadMonitorFields();
+                updateHeroStatus();
+                return;
+            }
+            lastLoadMonitorDaySyncAt = now;
+
+            try {
+                const response = await fetch(`/api/load-monitor/day?date=${encodeURIComponent(activeDate)}`);
+                if (!response.ok) {
+                    throw new Error('load-monitor-day request failed');
+                }
+
+                loadMonitorDayData = await response.json();
+                prefillLoadMonitorFields();
+                updateHeroStatus();
+            } catch (error) {
+                console.error('加载当日负荷失败:', error);
+            }
+        }
+
+        async function loadLoadMonitorWeek(options = {}) {
+            const { force = false } = options;
+            const now = Date.now();
+            if (!force && now - lastLoadMonitorWeekSyncAt < REFRESH_WINDOW_MS.loadMonitorWeek && loadMonitorWeekData) {
+                renderLoadMonitor(loadMonitorWeekData);
+                return;
+            }
+            lastLoadMonitorWeekSyncAt = now;
+
+            try {
+                const response = await fetch(`/api/load-monitor?date=${encodeURIComponent(activeDate)}&week=${encodeURIComponent(activeLoadMonitorWeekOffset)}`);
+                if (!response.ok) {
+                    throw new Error('load-monitor request failed');
+                }
+
+                loadMonitorWeekData = await response.json();
+                renderLoadMonitor(loadMonitorWeekData);
+                updateHeroStatus();
+            } catch (error) {
+                console.error('加载周负荷失败:', error);
+                const container = document.getElementById('load-monitor');
+                if (container) {
+                    container.innerHTML = '<p style="color: var(--danger);">负荷视图同步稍后再试。</p>';
+                }
+                updateHeroStatus();
+            }
+        }
+
+        async function ensureLoadMonitorLoaded(options = {}) {
+            await Promise.all([
+                loadLoadMonitorDay(options),
+                loadLoadMonitorWeek(options),
+            ]);
+        }
+
+        function shiftLoadMonitorWeek(delta) {
+            activeLoadMonitorWeekOffset += delta;
+            loadLoadMonitorWeek({ force: true });
+        }
+
+        function resetLoadMonitorWeek() {
+            activeLoadMonitorWeekOffset = 0;
+            loadLoadMonitorWeek({ force: true });
         }
 
         function getRestInput() {
@@ -1589,7 +2683,7 @@
                 return;
             }
 
-            const hasActiveSession = sessionState && sessionState.status === 'active';
+            const hasActiveSession = sessionState && isLiveSessionStatus(sessionState.status);
             const isRestDay = !plan || plan.trackable_exercise_count === 0;
 
             if (isRestDay && !hasActiveSession) {
@@ -1627,7 +2721,7 @@
         }
 
         function writeSessionCache(session) {
-            if (session && session.status === 'active') {
+            if (session && isLiveSessionStatus(session.status)) {
                 writeCacheValue(getSessionCacheKey(), session);
                 return;
             }
@@ -1691,10 +2785,12 @@
                 set_number: log.set_number,
                 actual_reps: log.actual_reps,
                 actual_weight: log.actual_weight,
+                rpe: log.rpe,
                 notes: log.notes,
                 rest_seconds: log.rest_seconds,
                 log_date: log.completed_at,
                 plan_date: planDate || activeDate,
+                session_notes: log.session_notes || null,
             };
         }
 
@@ -1725,9 +2821,13 @@
             });
 
             rememberActiveTab(tabName);
+            updateHeroStatus(tabName);
 
             if (tabName === 'training') {
                 checkCurrentSession();
+            }
+            if (tabName === 'load') {
+                ensureLoadMonitorLoaded();
             }
             if (tabName === 'history') {
                 ensureHistoryLoaded();
@@ -1808,6 +2908,7 @@
                 if (session.status === 'no_session') {
                     sessionState = null;
                     writeSessionCache(null);
+                    await loadLoadMonitorDay();
                     showTrainingSession();
                     return;
                 }
@@ -1822,6 +2923,7 @@
                     writePlanCache(hydratedPlan);
                     renderTodayPlan(hydratedPlan);
                 }
+                await loadLoadMonitorDay();
                 showTrainingSession();
             } catch (error) {
                 console.error('检查训练会话失败:', error);
@@ -1866,6 +2968,7 @@
                     writePlanCache(hydratedPlan);
                     renderTodayPlan(hydratedPlan);
                 }
+                await loadLoadMonitorDay();
                 switchTab(null, 'training');
                 showTrainingSession();
             } catch (error) {
@@ -1877,9 +2980,17 @@
         function showTrainingSession() {
             const noSession = document.getElementById('no-session');
             const activeSession = document.getElementById('active-session');
+            const setLogFields = document.getElementById('set-log-fields');
+            const setTextElement = document.getElementById('current-set-text');
             const detailElement = document.getElementById('current-target-info');
             const detailList = document.getElementById('current-details');
             const restInput = getRestInput();
+            const completeSetButton = document.getElementById('complete-set-btn');
+            const finishTrainingButton = document.getElementById('finish-training-btn');
+            const actualRepsInput = document.getElementById('actual-reps');
+            const actualWeightInput = document.getElementById('actual-weight');
+            const rpeInput = document.getElementById('rpe');
+            const setNotesInput = document.getElementById('notes');
 
             if (!sessionState || sessionState.status === 'completed') {
                 if (noSession) {
@@ -1895,15 +3006,45 @@
                     detailList.innerHTML = '';
                     detailList.style.display = 'none';
                 }
+                if (setTextElement) {
+                    setTextElement.textContent = '第 1 组';
+                }
+                if (completeSetButton) {
+                    completeSetButton.style.display = '';
+                }
+                if (finishTrainingButton) {
+                    finishTrainingButton.innerHTML = '<i class="fas fa-flag-checkered"></i>结束训练';
+                }
+                if (actualRepsInput) {
+                    actualRepsInput.value = '';
+                }
+                if (actualWeightInput) {
+                    actualWeightInput.value = '';
+                }
+                if (rpeInput) {
+                    rpeInput.value = '';
+                }
+                if (setNotesInput) {
+                    setNotesInput.value = '';
+                }
+                if (setLogFields) {
+                    setLogFields.style.display = '';
+                }
+                resetFinishTrainingFields();
+                closeFinishTrainingModal();
                 if (restInput && hasNumericValue(todayPlanData?.default_rest_seconds)) {
                     restInput.value = Number(todayPlanData.default_rest_seconds);
                 }
                 clearManualRest();
                 writeSessionCache(null);
+                prefillLoadMonitorFields();
                 updateTrainingAvailability(todayPlanData);
                 updatePlanAction();
+                updateHeroStatus();
                 return;
             }
+
+            const readyToFinish = sessionState.status === 'ready_to_finish';
 
             if (noSession) {
                 noSession.style.display = 'none';
@@ -1912,27 +3053,33 @@
                 activeSession.style.display = 'block';
             }
 
-            const exerciseName = sessionState.current_exercise || '训练继续';
-            const setNumber = sessionState.current_set || '-';
+            const exerciseName = readyToFinish
+                ? '今日计划已完成'
+                : (sessionState.current_exercise || '训练继续');
             const targetInfo = [];
-            if (hasDisplayValue(sessionState.target_sets)) {
+            if (readyToFinish) {
+                targetInfo.push('点击结束训练记录总结和负荷');
+            }
+            if (!readyToFinish && hasDisplayValue(sessionState.target_sets)) {
                 targetInfo.push(`目标 ${sessionState.target_sets} 组`);
             }
-            if (hasDisplayValue(sessionState.target_reps)) {
+            if (!readyToFinish && hasDisplayValue(sessionState.target_reps)) {
                 targetInfo.push(`${sessionState.target_reps} 次`);
             }
-            if (hasDisplayValue(sessionState.target_weight)) {
+            if (!readyToFinish && hasDisplayValue(sessionState.target_weight)) {
                 targetInfo.push(sessionState.target_weight);
             }
-            const restLabel = hasNumericValue(manualRestSeconds)
-                ? formatRestLabel(manualRestSeconds)
-                : formatRestLabel(
-                    hasNumericValue(sessionState.target_rest_seconds)
-                        ? sessionState.target_rest_seconds
-                        : sessionState.default_rest_seconds
-                );
-            if (restLabel) {
-                targetInfo.push(restLabel);
+            if (!readyToFinish) {
+                const restLabel = hasNumericValue(manualRestSeconds)
+                    ? formatRestLabel(manualRestSeconds)
+                    : formatRestLabel(
+                        hasNumericValue(sessionState.target_rest_seconds)
+                            ? sessionState.target_rest_seconds
+                            : sessionState.default_rest_seconds
+                    );
+                if (restLabel) {
+                    targetInfo.push(restLabel);
+                }
             }
 
             if (restInput) {
@@ -1958,9 +3105,11 @@
 
             if (detailList) {
                 detailList.innerHTML = '';
-                const details = Array.isArray(sessionState.details) ? sessionState.details : [];
+                const details = readyToFinish
+                    ? []
+                    : (Array.isArray(sessionState.details) ? sessionState.details : []);
                 let hasDetails = false;
-                if (sessionState.is_combination && Array.isArray(sessionState.components) && sessionState.components.length > 1) {
+                if (!readyToFinish && sessionState.is_combination && Array.isArray(sessionState.components) && sessionState.components.length > 1) {
                     const comboItem = document.createElement('li');
                     comboItem.textContent = `组合动作：${sessionState.components.join(' + ')}`;
                     detailList.appendChild(comboItem);
@@ -1976,23 +3125,93 @@
             }
 
             document.getElementById('current-exercise-name').textContent = exerciseName;
-            document.getElementById('current-set').textContent = setNumber;
+            if (setTextElement) {
+                setTextElement.textContent = readyToFinish
+                    ? '点击结束训练填写总结'
+                    : `第 ${sessionState.current_set || '-'} 组`;
+            }
+            if (setLogFields) {
+                setLogFields.style.display = readyToFinish ? 'none' : '';
+            }
+            if (completeSetButton) {
+                completeSetButton.style.display = readyToFinish ? 'none' : '';
+            }
+            if (finishTrainingButton) {
+                finishTrainingButton.innerHTML = readyToFinish
+                    ? '<i class="fas fa-flag-checkered"></i>保存总结并结束'
+                    : '<i class="fas fa-flag-checkered"></i>结束训练';
+            }
+            prefillLoadMonitorFields();
             writeSessionCache(sessionState);
             updateTrainingAvailability(todayPlanData);
             updatePlanAction();
+            updateHeroStatus();
         }
 
-        async function endTraining() {
+        function endTraining() {
             if (!sessionState || !sessionState.session) {
                 alert('先开始训练。');
                 return;
+            }
+            openFinishTrainingModal();
+        }
+
+        async function submitFinishTraining() {
+            const sessionNameInput = document.getElementById('session-name');
+            const sessionSlotInput = document.getElementById('session-slot');
+            const sessionRpeInput = document.getElementById('session-rpe');
+            const durationInput = document.getElementById('duration-minutes');
+            const bodyWeightInput = document.getElementById('body-weight-kg');
+            const fatigueInput = document.getElementById('fatigue-score');
+            const painInput = document.getElementById('pain-score');
+            const dailyNoteInput = document.getElementById('daily-note');
+            const sessionSummaryInput = document.getElementById('session-summary');
+
+            const sessionName = sessionNameInput ? sessionNameInput.value.trim() : '';
+            const sessionSlot = sessionSlotInput ? sessionSlotInput.value : '';
+            const sessionRpeRaw = sessionRpeInput ? sessionRpeInput.value.trim() : '';
+            const durationRaw = durationInput ? durationInput.value.trim() : '';
+            const bodyWeightRaw = bodyWeightInput ? bodyWeightInput.value.trim() : '';
+            const fatigueRaw = fatigueInput ? fatigueInput.value.trim() : '';
+            const painRaw = painInput ? painInput.value.trim() : '';
+            const dailyNote = dailyNoteInput ? dailyNoteInput.value.trim() : '';
+            const sessionSummary = sessionSummaryInput ? sessionSummaryInput.value.trim() : '';
+            const inferredDuration = calculateElapsedMinutes(sessionState.session.started_at);
+            const inferredSlot = guessSessionSlot();
+            const inferredSessionName = sessionName || sessionState.session.session_name || sessionState.suggested_session_name || '';
+            const sessionRpeValue = Number.parseFloat(sessionRpeRaw);
+
+            if (!Number.isFinite(sessionRpeValue) || sessionRpeValue < 1 || sessionRpeValue > 10) {
+                alert('Session RPE 请输入 1 到 10。');
+                return;
+            }
+
+            const requestPayload = {
+                session_id: sessionState.session.session_id,
+                notes: sessionSummary || null,
+                session_name: inferredSessionName || null,
+                session_slot: sessionSlot || inferredSlot || null,
+                daily_note: dailyNote || null,
+            };
+            requestPayload.session_rpe = sessionRpeValue;
+            requestPayload.duration_minutes = durationRaw
+                ? Number.parseInt(durationRaw, 10)
+                : inferredDuration;
+            if (bodyWeightRaw) {
+                requestPayload.body_weight_kg = Number.parseFloat(bodyWeightRaw);
+            }
+            if (fatigueRaw) {
+                requestPayload.fatigue_score = Number.parseFloat(fatigueRaw);
+            }
+            if (painRaw) {
+                requestPayload.pain_score = Number.parseFloat(painRaw);
             }
 
             try {
                 const response = await fetch('/api/finish-training', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session_id: sessionState.session.session_id }),
+                    body: JSON.stringify(requestPayload),
                 });
 
                 const result = await response.json();
@@ -2007,9 +3226,16 @@
                 }
                 document.getElementById('rest-timer').classList.remove('active');
 
+                closeFinishTrainingModal();
                 sessionState = null;
+                loadMonitorDayData = result.day_metric || loadMonitorDayData;
                 clearManualRest();
                 showTrainingSession();
+                await Promise.all([
+                    ensureHistoryLoaded({ force: true }),
+                    loadLoadMonitorDay({ force: true }),
+                    loadLoadMonitorWeek({ force: true }),
+                ]);
                 alert('训练已结束，记录已经沉淀到历史。');
             } catch (error) {
                 console.error('结束训练失败:', error);
@@ -2025,10 +3251,12 @@
 
             const actualRepsInput = document.getElementById('actual-reps');
             const actualWeightInput = document.getElementById('actual-weight');
+            const rpeInput = document.getElementById('rpe');
             const notesInput = document.getElementById('notes');
 
             const actualRepsRaw = actualRepsInput.value.trim();
             const actualWeightRaw = actualWeightInput.value.trim();
+            const rpeRaw = rpeInput.value.trim();
             const notesRaw = notesInput.value.trim();
 
             const payload = {
@@ -2037,6 +3265,9 @@
                 actual_weight: actualWeightRaw || null,
                 notes: notesRaw || null,
             };
+            if (rpeRaw) {
+                payload.rpe = Number.parseFloat(rpeRaw);
+            }
             if (Number.isFinite(manualRestSeconds) && manualRestSeconds >= 0) {
                 payload.rest_interval_seconds = manualRestSeconds;
             }
@@ -2052,6 +3283,7 @@
 
                 actualRepsInput.value = '';
                 actualWeightInput.value = '';
+                rpeInput.value = '';
                 notesInput.value = '';
 
                 if (result.error) {
@@ -2071,6 +3303,16 @@
                         renderTrainingHistory(historyEntries);
                     }
                     alert('训练完成，今天的记录已经保存。');
+                    return;
+                }
+
+                if (result.status === 'ready_to_finish') {
+                    sessionState = { ...result };
+                    showTrainingSession();
+                    if (historyLoaded) {
+                        renderTrainingHistory(historyEntries);
+                    }
+                    alert('今天的训练组已经完成，写下总结后结束训练。');
                     return;
                 }
 
@@ -2114,6 +3356,7 @@
 
             if (!restEndTime || !hasNumericValue(totalSeconds)) {
                 restTimer.classList.remove('active');
+                updateHeroStatus();
                 return;
             }
 
@@ -2121,17 +3364,20 @@
             if (numericSeconds === 0) {
                 restTimer.classList.remove('active');
                 showTrainingSession();
+                updateHeroStatus();
                 return;
             }
 
             const endTime = new Date(restEndTime);
             restTimer.classList.add('active');
             timeDisplay.textContent = numericSeconds;
+            updateHeroStatus();
 
             restTimerHandle = setInterval(() => {
                 const now = new Date();
                 const timeLeft = Math.max(0, Math.floor((endTime - now) / 1000));
                 timeDisplay.textContent = timeLeft;
+                updateHeroStatus();
 
                 if (timeLeft <= 0) {
                     clearInterval(restTimerHandle);
@@ -2149,6 +3395,7 @@
             }
             document.getElementById('rest-timer').classList.remove('active');
             showTrainingSession();
+            updateHeroStatus();
         }
 
         function handleFileSelect(event) {
@@ -2170,6 +3417,7 @@
             const hasPlanCache = hasSessionCache ? true : applyCachedPlan();
             const initialTab = hasSessionCache ? 'training' : readSavedActiveTab();
             switchTab(null, initialTab);
+            updateHeroStatus(initialTab);
 
             if (!hasPlanCache) {
                 document.getElementById('today-plan').innerHTML = '<p>正在同步今日计划...</p>';
@@ -2177,6 +3425,10 @@
 
             loadTodayPlan({ force: true });
             checkCurrentSession({ force: true });
+            loadLoadMonitorDay({ force: true });
+            if (initialTab === 'load') {
+                loadLoadMonitorWeek({ force: true });
+            }
 
             document.getElementById('upload-form').addEventListener('submit', async function(event) {
                 event.preventDefault();

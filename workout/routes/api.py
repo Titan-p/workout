@@ -9,7 +9,10 @@ from typing import Any, Dict, List, Optional
 from flask import Blueprint, jsonify, request
 
 from ..services import (
+    SLOT_LABELS,
     TrainingSessionService,
+    build_load_monitor_day,
+    build_load_monitor_week,
     get_plan_for_date,
     get_week_plans,
     import_excel_to_db,
@@ -34,6 +37,31 @@ def _today_iso() -> str:
 
 def _to_iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime(ISO_TIMESTAMP)
+
+
+def _parse_optional_float(value: Any) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_optional_int(value: Any) -> Optional[int]:
+    if value in (None, ""):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _clean_text(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 def _extract_number(value: Any) -> Optional[int]:
@@ -335,19 +363,21 @@ def _build_session_payload(
     plan_summary: Dict[str, Any],
     logs,
 ) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {
-        "session": session_payload,
-        "plan": plan_summary,
-        "status": "active" if session_payload.get("status") == "active" else "completed",
-    }
+    session_status = session_payload.get("status")
+    payload: Dict[str, Any] = {"session": session_payload, "plan": plan_summary}
 
     next_step = _determine_next_step(plan_summary, logs)
     if next_step is None:
-        payload["status"] = "completed"
+        payload["status"] = "completed" if session_status == "completed" else "ready_to_finish"
         payload["current_exercise"] = None
         payload["current_set"] = None
+        payload["target_sets"] = None
+        payload["target_reps"] = None
+        payload["target_weight"] = None
         payload["target_rest_seconds"] = None
+        payload["details"] = []
     else:
+        payload["status"] = "active"
         payload.update(
             {
                 "current_exercise": next_step["exercise"],
@@ -366,6 +396,10 @@ def _build_session_payload(
     payload.setdefault("is_combination", False)
     payload.setdefault("components", [])
     payload.setdefault("primary_component", None)
+    payload["suggested_session_name"] = (
+        session_payload.get("session_name")
+        or (logs[0].exercise if logs else None)
+    )
 
     return payload
 
@@ -522,8 +556,12 @@ def next_set():
 
     actual_reps = payload.get("actual_reps")
     actual_weight = payload.get("actual_weight")
-    notes = payload.get("notes")
-    rpe = payload.get("rpe")
+    notes = str(payload.get("notes") or "").strip() or None
+    rpe = _parse_optional_float(payload.get("rpe"))
+    if payload.get("rpe") not in (None, "") and rpe is None:
+        return jsonify({"error": "RPE 需要使用数字"}), 400
+    if rpe is not None and not 1 <= rpe <= 10:
+        return jsonify({"error": "RPE 范围为 1 到 10"}), 400
 
     service = TrainingSessionService()
     session = service.get_session(session_id)
@@ -535,13 +573,7 @@ def next_set():
     next_step = _determine_next_step(plan_summary, session.logs)
 
     if next_step is None:
-        completed_session = service.complete_session(session_id)
-        return jsonify(
-            {
-                "status": "completed",
-                "session": completed_session.to_dict(),
-            }
-        )
+        return jsonify(_build_session_payload(session.to_dict(), plan_summary, session.logs))
 
     exercise = next_step["exercise"]
     set_number = next_step["next_set"]
@@ -581,14 +613,11 @@ def next_set():
 
     next_step = _determine_next_step(plan_summary, updated_session.logs)
     if next_step is None:
-        completed_session = service.complete_session(session_id)
-        return jsonify(
-            {
-                "status": "completed",
-                "session": completed_session.to_dict(),
-                "last_log": log.to_dict(),
-            }
+        response = _build_session_payload(
+            updated_session.to_dict(), plan_summary, updated_session.logs
         )
+        response["last_log"] = log.to_dict()
+        return jsonify(response)
 
     next_rest = next_step.get("target_rest_seconds")
     rest_seconds = next_rest if next_rest is not None else updated_session.rest_interval_seconds
@@ -626,7 +655,6 @@ def current_session():
     plan_summary = _summarise_plan(plan, phase, remarks)
     payload = _build_session_payload(session.to_dict(), plan_summary, session.logs)
     payload.update({
-        "status": "active" if session.is_active else "completed",
         "plan_date": session.plan_date,
         "default_rest_seconds": plan_summary.get("default_rest_seconds"),
     })
@@ -640,13 +668,62 @@ def finish_training():
     if not session_id:
         return jsonify({"error": "Missing session_id"}), 400
 
-    notes = payload.get("notes")
+    notes = _clean_text(payload.get("notes"))
+    session_name = _clean_text(payload.get("session_name"))
+    session_slot = _clean_text(payload.get("session_slot"))
+    if session_slot is not None and session_slot not in SLOT_LABELS:
+        return jsonify({"error": "训练时段不合法"}), 400
+
+    session_rpe = _parse_optional_float(payload.get("session_rpe"))
+    if payload.get("session_rpe") not in (None, "") and session_rpe is None:
+        return jsonify({"error": "Session RPE 需要使用数字"}), 400
+    if session_rpe is not None and not 1 <= session_rpe <= 10:
+        return jsonify({"error": "Session RPE 范围为 1 到 10"}), 400
+
+    duration_minutes = _parse_optional_int(payload.get("duration_minutes"))
+    if payload.get("duration_minutes") not in (None, "") and duration_minutes is None:
+        return jsonify({"error": "训练时长需要使用整数分钟"}), 400
+    if duration_minutes is not None and duration_minutes <= 0:
+        return jsonify({"error": "训练时长需要大于 0"}), 400
+
+    body_weight_kg = _parse_optional_float(payload.get("body_weight_kg"))
+    if body_weight_kg is not None and body_weight_kg <= 0:
+        return jsonify({"error": "体重需要大于 0"}), 400
+
+    fatigue_score = _parse_optional_float(payload.get("fatigue_score"))
+    if fatigue_score is not None and not 0 <= fatigue_score <= 10:
+        return jsonify({"error": "疲劳分数范围为 0 到 10"}), 400
+
+    pain_score = _parse_optional_float(payload.get("pain_score"))
+    if pain_score is not None and not 0 <= pain_score <= 10:
+        return jsonify({"error": "疼痛分数范围为 0 到 10"}), 400
+
+    daily_note = _clean_text(payload.get("daily_note"))
     service = TrainingSessionService()
     session = service.get_session(session_id)
     if session is None:
         return jsonify({"error": "Session not found"}), 404
+    if session_rpe is None and session.session_rpe is None:
+        return jsonify({"error": "Session RPE 需要填写"}), 400
 
-    completed_session = service.complete_session(session_id, notes=notes)
+    if session_name is None and session.logs:
+        session_name = session.logs[0].exercise
+
+    completed_session = service.complete_session(
+        session_id,
+        notes=notes,
+        session_name=session_name,
+        session_slot=session_slot,
+        session_rpe=session_rpe,
+        duration_minutes=duration_minutes,
+    )
+    day_metric = service.upsert_day_metric(
+        completed_session.plan_date,
+        body_weight_kg=body_weight_kg,
+        fatigue_score=fatigue_score,
+        pain_score=pain_score,
+        daily_note=daily_note,
+    )
     phase, remarks, plan = get_plan_for_date(completed_session.plan_date)
     plan_summary = _summarise_plan(plan, phase, remarks)
 
@@ -654,9 +731,31 @@ def finish_training():
         {
             "status": "completed",
             "session": completed_session.to_dict(),
+            "day_metric": day_metric.to_dict(),
             "plan": plan_summary,
         }
     )
+
+
+@api_bp.route("/load-monitor", methods=["GET"])
+def load_monitor():
+    week_offset = int(request.args.get("week", 0))
+    reference_date = request.args.get("date", _today_iso())
+    service = TrainingSessionService()
+    payload = build_load_monitor_week(
+        service,
+        week_offset=week_offset,
+        reference_date=reference_date,
+    )
+    return jsonify(payload)
+
+
+@api_bp.route("/load-monitor/day", methods=["GET"])
+def load_monitor_day():
+    date_str = request.args.get("date", _today_iso())
+    service = TrainingSessionService()
+    payload = build_load_monitor_day(service, date_str)
+    return jsonify(payload)
 
 
 @api_bp.route("/training-history", methods=["GET"])
@@ -677,14 +776,34 @@ def training_history():
                 "set_number": log.set_number,
                 "actual_reps": log.actual_reps,
                 "actual_weight": log.actual_weight,
+                "rpe": log.rpe,
                 "notes": log.notes,
                 "rest_seconds": log.rest_seconds,
                 "log_date": _to_iso(log.completed_at),
                 "plan_date": session.plan_date if session else None,
+                "session_notes": session.notes if session else None,
             }
         )
 
     return jsonify(history)
+
+
+@api_bp.route("/training-history/<session_id>", methods=["DELETE"])
+def delete_training_history_session(session_id: str):
+    service = TrainingSessionService()
+    session = service.delete_session(session_id)
+    if session is None:
+        return jsonify({"error": "Session not found"}), 404
+
+    return jsonify(
+        {
+            "status": "deleted",
+            "session_id": session.id,
+            "plan_date": session.plan_date,
+            "session_status": session.status,
+            "deleted_sets": len(session.logs),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

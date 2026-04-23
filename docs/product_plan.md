@@ -84,6 +84,25 @@
 - 休息结束振动提醒
 - 训练中快捷输入按钮
 
+### 5. 负荷管理
+
+目标：把 `session RPE × Duration` 变成可长期监控的周负荷面板。
+
+当前基础：
+
+- 训练页已经支持 `RPE + 训练总结`
+- `training_sessions` 已经具备 session 级承载位
+- Excel 中已经存在 `Load Monitor` sheet 作为口径参考
+
+下一步功能：
+
+- 结束训练记录 `session RPE`
+- 结束训练记录 `duration`
+- 结束训练记录 `训练时段`
+- 每日记录 `体重 / 疲劳 / 疼痛`
+- `Load Monitor` 周视图
+- 周总负荷 / Chronic Load / ACWR
+
 ## 下一轮切片
 
 下一轮优先实现四项：
@@ -92,6 +111,7 @@
 2. `动作趋势页`
 3. `Kdocs 一键同步`
 4. `导入版本回滚`
+5. `Load Monitor 周视图`
 
 ## 预期收益
 
