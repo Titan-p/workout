@@ -57,6 +57,12 @@ def test_index_renders(client):
     assert "休息日" in response.text
 
 
+def test_training_view_hides_start_rest_input(client):
+    response = client.get("/training?date=2026-04-23")
+    assert response.status_code == 200
+    assert "组间休息（秒）" not in response.text
+
+
 def test_today_plan_summary(client, supabase_stub):
     today = datetime.now().strftime("%Y-%m-%d")
     seed_plan(supabase_stub, today)
@@ -181,6 +187,68 @@ def test_finish_training_endpoint(client, supabase_stub):
 
     status = client.get(f"/api/current-session?date={today}").get_json()
     assert status["status"] == "no_session"
+
+
+def test_cancel_training_clears_active_session_and_logs(client, supabase_stub):
+    today = datetime.now().strftime("%Y-%m-%d")
+    seed_plan(supabase_stub, today)
+
+    start_resp = client.post("/api/start-training", json={"date": today})
+    session_id = start_resp.get_json()["session"]["session_id"]
+
+    set_resp = client.post(
+        "/api/next-set",
+        json={"session_id": session_id, "actual_reps": 8, "actual_weight": "80"},
+    )
+    assert set_resp.status_code == 200
+    assert set_resp.get_json()["status"] == "rest"
+
+    cancel_resp = client.post("/api/cancel-training", json={"session_id": session_id})
+    assert cancel_resp.status_code == 200
+    payload = cancel_resp.get_json()
+    assert payload["status"] == "cancelled"
+    assert payload["session_id"] == session_id
+    assert payload["deleted_sets"] == 1
+
+    assert supabase_stub.storage["training_sessions"] == []
+    assert supabase_stub.storage["training_sets"] == []
+    assert client.get(f"/api/current-session?date={today}").get_json()["status"] == "no_session"
+
+
+def test_cancel_training_clears_ready_to_finish_session(client, supabase_stub):
+    today = datetime.now().strftime("%Y-%m-%d")
+    supabase_stub.seed(
+        "workout_plans",
+        [
+            {
+                "date": today,
+                "phase": "单组取消",
+                "headers": ["动作", "组数", "次数", "休息"],
+                "plan_data": [["深蹲", "1", "5", "90秒"]],
+                "remarks": [],
+            }
+        ],
+    )
+
+    start_resp = client.post("/api/start-training", json={"date": today})
+    session_id = start_resp.get_json()["session"]["session_id"]
+
+    set_resp = client.post(
+        "/api/next-set",
+        json={"session_id": session_id, "actual_reps": 5},
+    )
+    assert set_resp.status_code == 200
+    assert set_resp.get_json()["status"] == "ready_to_finish"
+
+    cancel_resp = client.post("/api/cancel-training", json={"session_id": session_id})
+    assert cancel_resp.status_code == 200
+    payload = cancel_resp.get_json()
+    assert payload["status"] == "cancelled"
+    assert payload["deleted_sets"] == 1
+
+    assert supabase_stub.storage["training_sessions"] == []
+    assert supabase_stub.storage["training_sets"] == []
+    assert client.get(f"/api/current-session?date={today}").get_json()["status"] == "no_session"
 
 
 def test_finish_training_persists_load_monitor_fields(client, supabase_stub):

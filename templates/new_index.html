@@ -822,6 +822,10 @@
             gap: 14px;
         }
 
+        .session-actions-three {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
         .load-toolbar {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1217,11 +1221,47 @@
             font-size: 1rem;
         }
 
+        .btn.is-busy {
+            cursor: progress;
+        }
+
         .btn:disabled {
             opacity: 0.55;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        .feedback-banner {
+            display: none;
+            margin-bottom: 16px;
+            padding: 14px 16px;
+            border-radius: 18px;
+            font-weight: 700;
+            line-height: 1.6;
+            border: 1px solid rgba(24, 19, 15, 0.08);
+        }
+
+        .feedback-banner.is-visible {
+            display: block;
+        }
+
+        .feedback-banner.info {
+            background: rgba(255, 244, 226, 0.92);
+            color: #8b4d0a;
+            border-color: rgba(203, 127, 20, 0.18);
+        }
+
+        .feedback-banner.success {
+            background: rgba(230, 246, 239, 0.94);
+            color: #1f6a51;
+            border-color: rgba(47, 124, 96, 0.18);
+        }
+
+        .feedback-banner.error {
+            background: rgba(255, 237, 233, 0.96);
+            color: #9b3d2c;
+            border-color: rgba(187, 78, 59, 0.18);
         }
 
         .rest-timer {
@@ -1435,6 +1475,7 @@
                         </div>
                     </div>
                     <div id="training-session" class="training-stage">
+                        <div id="training-feedback" class="feedback-banner" aria-live="polite"></div>
                         <div id="rest-day-message" class="rest-day-message">
                             今天恢复
                         </div>
@@ -1442,17 +1483,11 @@
                             <div class="session-empty-copy">
                                 <h2>开始训练</h2>
                             </div>
-                            <div class="setup-grid">
-                                <div class="input-group">
-                                    <label for="rest-interval-input">组间休息（秒）</label>
-                                    <input type="number" id="rest-interval-input" min="0" step="5" value="{{ default_rest_interval }}">
-                                </div>
-                                <div class="start-panel">
-                                    <button id="start-training-btn" class="btn btn-primary btn-large" onclick="startTraining()">
-                                        <i class="fas fa-play"></i>
-                                        开始训练
-                                    </button>
-                                </div>
+                            <div class="start-panel">
+                                <button id="start-training-btn" class="btn btn-primary btn-large" onclick="startTraining()">
+                                    <i class="fas fa-play"></i>
+                                    开始训练
+                                </button>
                             </div>
                         </div>
 
@@ -1486,10 +1521,14 @@
                                 </div>
                             </div>
 
-                            <div class="session-actions">
+                            <div class="session-actions session-actions-three">
                                 <button id="complete-set-btn" class="btn btn-success btn-large" onclick="completeSet()">
                                     <i class="fas fa-check"></i>
                                     完成这组
+                                </button>
+                                <button id="cancel-training-btn" class="btn btn-secondary btn-large" onclick="cancelTraining()">
+                                    <i class="fas fa-ban"></i>
+                                    取消训练
                                 </button>
                                 <button id="finish-training-btn" class="btn btn-danger btn-large" onclick="endTraining()">
                                     <i class="fas fa-flag-checkered"></i>
@@ -1582,11 +1621,12 @@
                     <h3>结束训练记录</h3>
                     <p>这里记录整次训练的负荷和总结。训练中的每组数据已经单独保存。</p>
                 </div>
-                <button type="button" class="btn btn-secondary finish-modal-close" onclick="closeFinishTrainingModal()" aria-label="关闭">
+                <button id="close-finish-training-btn" type="button" class="btn btn-secondary finish-modal-close" onclick="closeFinishTrainingModal()" aria-label="关闭">
                     <i class="fas fa-xmark"></i>
                 </button>
             </div>
 
+            <div id="finish-feedback" class="feedback-banner" aria-live="polite"></div>
             <div class="session-summary-group">
                 <div class="field-grid session-load-grid">
                     <div class="input-group">
@@ -1666,7 +1706,7 @@
             </div>
 
             <div class="session-actions finish-modal-actions">
-                <button type="button" class="btn btn-secondary btn-large" onclick="closeFinishTrainingModal()">
+                <button id="cancel-finish-training-btn" type="button" class="btn btn-secondary btn-large" onclick="closeFinishTrainingModal()">
                     <i class="fas fa-arrow-left"></i>
                     返回训练
                 </button>
@@ -1837,6 +1877,78 @@
             noteElement.textContent = note;
         }
 
+        function showTrainingFeedback(message, tone = 'info', target = 'auto') {
+            const modalOpen = document.getElementById('finish-training-modal')?.classList.contains('active');
+            const targetId = target === 'page'
+                ? 'training-feedback'
+                : target === 'modal'
+                    ? 'finish-feedback'
+                    : (modalOpen ? 'finish-feedback' : 'training-feedback');
+
+            ['training-feedback', 'finish-feedback'].forEach(id => {
+                const element = document.getElementById(id);
+                if (!element) {
+                    return;
+                }
+                if (id === targetId && message) {
+                    element.textContent = message;
+                    element.className = `feedback-banner ${tone} is-visible`;
+                    return;
+                }
+                element.textContent = '';
+                element.className = 'feedback-banner';
+            });
+        }
+
+        function clearTrainingFeedback(target = 'all') {
+            const ids = target === 'all'
+                ? ['training-feedback', 'finish-feedback']
+                : [target === 'modal' ? 'finish-feedback' : 'training-feedback'];
+            ids.forEach(id => {
+                const element = document.getElementById(id);
+                if (!element) {
+                    return;
+                }
+                element.textContent = '';
+                element.className = 'feedback-banner';
+            });
+        }
+
+        function setButtonBusy(buttonId, isBusy, busyHtml = '') {
+            const button = document.getElementById(buttonId);
+            if (!button) {
+                return;
+            }
+
+            if (isBusy) {
+                if (!button.dataset.idleHtml) {
+                    button.dataset.idleHtml = button.innerHTML;
+                }
+                button.dataset.busy = '1';
+                button.disabled = true;
+                button.classList.add('is-busy');
+                if (busyHtml) {
+                    button.innerHTML = busyHtml;
+                }
+                return;
+            }
+
+            button.dataset.busy = '';
+            button.disabled = false;
+            button.classList.remove('is-busy');
+            if (button.dataset.idleHtml) {
+                button.innerHTML = button.dataset.idleHtml;
+            }
+        }
+
+        function setButtonDisabled(buttonId, disabled) {
+            const button = document.getElementById(buttonId);
+            if (!button || button.dataset.busy === '1') {
+                return;
+            }
+            button.disabled = disabled;
+        }
+
         function formatRestLabel(seconds) {
             const value = Number(seconds);
             if (!Number.isFinite(value) || value < 0) {
@@ -2005,6 +2117,7 @@
             if (!modal) {
                 return;
             }
+            clearTrainingFeedback('modal');
             prefillLoadMonitorFields();
             modal.classList.add('active');
             updateHeroStatus();
@@ -2020,7 +2133,11 @@
             if (!modal) {
                 return;
             }
+            if (document.getElementById('submit-finish-training-btn')?.dataset.busy === '1') {
+                return;
+            }
             modal.classList.remove('active');
+            clearTrainingFeedback('modal');
             updateHeroStatus();
         }
 
@@ -2688,10 +2805,10 @@
 
             if (isRestDay && !hasActiveSession) {
                 restMessage.style.display = 'block';
-                startButton.disabled = true;
+                setButtonDisabled('start-training-btn', true);
             } else {
                 restMessage.style.display = 'none';
-                startButton.disabled = false;
+                setButtonDisabled('start-training-btn', false);
             }
         }
 
@@ -2932,20 +3049,27 @@
 
         async function startTraining() {
             if (todayPlanData && todayPlanData.trackable_exercise_count === 0) {
-                alert('今天休息。');
+                showTrainingFeedback('今天安排恢复。', 'info', 'page');
                 return;
             }
 
-            const restInput = getRestInput();
-            const restValue = parseInt(restInput ? restInput.value : '', 10);
+            const startButton = document.getElementById('start-training-btn');
+            if (startButton?.dataset.busy === '1') {
+                return;
+            }
+
             const payload = {
                 date: activeDate,
             };
-            if (Number.isFinite(restValue) && restValue >= 0) {
-                payload.rest_interval_seconds = restValue;
-            }
 
             try {
+                setButtonBusy(
+                    'start-training-btn',
+                    true,
+                    '<i class="fas fa-spinner fa-spin"></i>启动中'
+                );
+                showTrainingFeedback('正在创建训练会话...', 'info', 'page');
+
                 const response = await fetch('/api/start-training', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2954,7 +3078,7 @@
 
                 const result = await response.json();
                 if (!response.ok) {
-                    alert(result.error || '训练开启稍后重试。');
+                    showTrainingFeedback(result.error || '训练开启稍后重试。', 'error', 'page');
                     return;
                 }
 
@@ -2971,9 +3095,12 @@
                 await loadLoadMonitorDay();
                 switchTab(null, 'training');
                 showTrainingSession();
+                showTrainingFeedback('训练已开始。', 'success', 'page');
             } catch (error) {
                 console.error('开始训练失败:', error);
-                alert('训练开启稍后重试。');
+                showTrainingFeedback('训练开启稍后重试。', 'error', 'page');
+            } finally {
+                setButtonBusy('start-training-btn', false);
             }
         }
 
@@ -3032,6 +3159,7 @@
                 }
                 resetFinishTrainingFields();
                 closeFinishTrainingModal();
+                clearTrainingFeedback('modal');
                 if (restInput && hasNumericValue(todayPlanData?.default_rest_seconds)) {
                     restInput.value = Number(todayPlanData.default_rest_seconds);
                 }
@@ -3150,13 +3278,86 @@
 
         function endTraining() {
             if (!sessionState || !sessionState.session) {
-                alert('先开始训练。');
+                showTrainingFeedback('先开始训练。', 'error', 'page');
                 return;
             }
             openFinishTrainingModal();
         }
 
+        async function cancelTraining() {
+            if (!sessionState || !sessionState.session) {
+                showTrainingFeedback('当前没有训练会话。', 'error', 'page');
+                return;
+            }
+
+            const cancelButton = document.getElementById('cancel-training-btn');
+            if (cancelButton?.dataset.busy === '1') {
+                return;
+            }
+
+            const confirmed = window.confirm('取消训练会清空本次未完成的训练记录。');
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                setButtonBusy(
+                    'cancel-training-btn',
+                    true,
+                    '<i class="fas fa-spinner fa-spin"></i>取消中'
+                );
+                setButtonDisabled('complete-set-btn', true);
+                setButtonDisabled('finish-training-btn', true);
+                showTrainingFeedback('正在取消训练并清空本次记录...', 'info', 'page');
+
+                const response = await fetch('/api/cancel-training', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionState.session.session_id }),
+                });
+
+                const result = await response.json();
+                if (!response.ok || result.error) {
+                    showTrainingFeedback(result.error || '取消训练稍后重试。', 'error', 'page');
+                    return;
+                }
+
+                if (restTimerHandle) {
+                    clearInterval(restTimerHandle);
+                    restTimerHandle = null;
+                }
+                document.getElementById('rest-timer').classList.remove('active');
+
+                closeFinishTrainingModal();
+                sessionState = null;
+                clearManualRest();
+                writeSessionCache(null);
+                removeCacheValue(getHistoryCacheKey());
+                historyEntries = historyEntries.filter(entry => entry.session_id !== result.session_id);
+                historyLoaded = false;
+                showTrainingSession();
+                await Promise.all([
+                    ensureHistoryLoaded({ force: true }),
+                    loadLoadMonitorDay({ force: true }),
+                    loadLoadMonitorWeek({ force: true }),
+                ]);
+                showTrainingFeedback('训练已取消，本次记录已清空。', 'success', 'page');
+            } catch (error) {
+                console.error('取消训练失败:', error);
+                showTrainingFeedback('取消训练稍后重试。', 'error', 'page');
+            } finally {
+                setButtonBusy('cancel-training-btn', false);
+                setButtonDisabled('complete-set-btn', false);
+                setButtonDisabled('finish-training-btn', false);
+            }
+        }
+
         async function submitFinishTraining() {
+            const submitButton = document.getElementById('submit-finish-training-btn');
+            if (submitButton?.dataset.busy === '1') {
+                return;
+            }
+
             const sessionNameInput = document.getElementById('session-name');
             const sessionSlotInput = document.getElementById('session-slot');
             const sessionRpeInput = document.getElementById('session-rpe');
@@ -3182,7 +3383,7 @@
             const sessionRpeValue = Number.parseFloat(sessionRpeRaw);
 
             if (!Number.isFinite(sessionRpeValue) || sessionRpeValue < 1 || sessionRpeValue > 10) {
-                alert('Session RPE 请输入 1 到 10。');
+                showTrainingFeedback('Session RPE 请输入 1 到 10。', 'error', 'modal');
                 return;
             }
 
@@ -3208,6 +3409,15 @@
             }
 
             try {
+                setButtonBusy(
+                    'submit-finish-training-btn',
+                    true,
+                    '<i class="fas fa-spinner fa-spin"></i>保存中'
+                );
+                setButtonDisabled('cancel-finish-training-btn', true);
+                setButtonDisabled('close-finish-training-btn', true);
+                showTrainingFeedback('正在保存训练总结和负荷记录...', 'info', 'modal');
+
                 const response = await fetch('/api/finish-training', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3216,7 +3426,7 @@
 
                 const result = await response.json();
                 if (result.error) {
-                    alert(result.error);
+                    showTrainingFeedback(result.error, 'error', 'modal');
                     return;
                 }
 
@@ -3236,16 +3446,25 @@
                     loadLoadMonitorDay({ force: true }),
                     loadLoadMonitorWeek({ force: true }),
                 ]);
-                alert('训练已结束，记录已经沉淀到历史。');
+                showTrainingFeedback('训练已结束，记录已经沉淀到历史。', 'success', 'page');
             } catch (error) {
                 console.error('结束训练失败:', error);
-                alert('训练结束稍后重试。');
+                showTrainingFeedback('训练结束稍后重试。', 'error', 'modal');
+            } finally {
+                setButtonBusy('submit-finish-training-btn', false);
+                setButtonDisabled('cancel-finish-training-btn', false);
+                setButtonDisabled('close-finish-training-btn', false);
             }
         }
 
         async function completeSet() {
             if (!sessionState || !sessionState.session) {
-                alert('先开始训练。');
+                showTrainingFeedback('先开始训练。', 'error', 'page');
+                return;
+            }
+
+            const completeButton = document.getElementById('complete-set-btn');
+            if (completeButton?.dataset.busy === '1') {
                 return;
             }
 
@@ -3273,6 +3492,14 @@
             }
 
             try {
+                setButtonBusy(
+                    'complete-set-btn',
+                    true,
+                    '<i class="fas fa-spinner fa-spin"></i>记录中'
+                );
+                setButtonDisabled('finish-training-btn', true);
+                showTrainingFeedback('正在记录这一组...', 'info', 'page');
+
                 const response = await fetch('/api/next-set', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3287,7 +3514,7 @@
                 notesInput.value = '';
 
                 if (result.error) {
-                    alert(result.error);
+                    showTrainingFeedback(result.error, 'error', 'page');
                     return;
                 }
 
@@ -3302,7 +3529,7 @@
                     if (historyLoaded) {
                         renderTrainingHistory(historyEntries);
                     }
-                    alert('训练完成，今天的记录已经保存。');
+                    showTrainingFeedback('训练完成，今天的记录已经保存。', 'success', 'page');
                     return;
                 }
 
@@ -3312,7 +3539,7 @@
                     if (historyLoaded) {
                         renderTrainingHistory(historyEntries);
                     }
-                    alert('今天的训练组已经完成，写下总结后结束训练。');
+                    showTrainingFeedback('今天的训练组已经记录完成，点击结束训练填写总结。', 'success', 'page');
                     return;
                 }
 
@@ -3338,10 +3565,14 @@
 
                     showTrainingSession();
                     startRestTimer(result.rest_end_time, result.rest_seconds);
+                    showTrainingFeedback('这一组已记录，休息计时已开始。', 'success', 'page');
                 }
             } catch (error) {
                 console.error('完成训练组失败:', error);
-                alert('训练记录稍后重试。');
+                showTrainingFeedback('训练记录稍后重试。', 'error', 'page');
+            } finally {
+                setButtonBusy('complete-set-btn', false);
+                setButtonDisabled('finish-training-btn', false);
             }
         }
 

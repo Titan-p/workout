@@ -737,6 +737,34 @@ def finish_training():
     )
 
 
+@api_bp.route("/cancel-training", methods=["POST"])
+def cancel_training():
+    payload = request.get_json(silent=True) or {}
+    session_id = payload.get("session_id")
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+
+    service = TrainingSessionService()
+    session = service.get_session(session_id)
+    if session is None:
+        return jsonify({"error": "Session not found"}), 404
+    if session.status == "completed":
+        return jsonify({"error": "已完成训练不能取消"}), 400
+
+    cancelled_session = service.delete_session(session_id)
+    if cancelled_session is None:
+        return jsonify({"error": "Session not found"}), 404
+
+    return jsonify(
+        {
+            "status": "cancelled",
+            "session_id": cancelled_session.id,
+            "plan_date": cancelled_session.plan_date,
+            "deleted_sets": len(cancelled_session.logs),
+        }
+    )
+
+
 @api_bp.route("/load-monitor", methods=["GET"])
 def load_monitor():
     week_offset = int(request.args.get("week", 0))
