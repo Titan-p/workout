@@ -2,6 +2,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase";
 
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+const DISTANCE_EXERCISE_PATTERN = /(冲刺|加速跑|折返跑|短跑|长跑|跨步跑)/;
+const DURATION_EXERCISE_PATTERN = /(平板支撑|支撑保持|保持|悬停|静止|定点)/;
 const SLOT_LABELS: Record<string, string> = {
   morning: "上午",
   afternoon: "下午",
@@ -38,7 +40,15 @@ export type TrainingSetRecord = {
   session_id: string;
   exercise: string;
   set_number: number;
+  group_name?: string | null;
+  group_type?: string | null;
+  round_number?: number | null;
+  component_index?: number | null;
+  component_name?: string | null;
   actual_reps: number | null;
+  actual_metric_type?: TargetMetric["type"] | null;
+  actual_value?: number | null;
+  actual_unit?: string | null;
   actual_weight: string | null;
   rpe: number | null;
   rest_seconds: number | null;
@@ -59,10 +69,17 @@ export type ExerciseSummary = {
   exercise_name: string;
   phase: string | null;
   components: string[];
+  component_targets: Array<{
+    component_name: string;
+    target_reps: number | null;
+    target_weight: string | null;
+    target_metric: TargetMetric;
+  }>;
   primary_component: string;
   is_combination: boolean;
   target_sets: number | null;
   target_reps: number | null;
+  target_metric: TargetMetric;
   target_weight: string | null;
   target_rest_seconds: number | null;
   details: string[];
@@ -78,6 +95,13 @@ export type PlanSummary = {
   trackable_exercise_count: number;
   note_exercise_count: number;
   is_rest_day: boolean;
+};
+
+export type TargetMetric = {
+  type: "reps" | "distance" | "duration" | "custom";
+  value: number | null;
+  unit: string | null;
+  label: string;
 };
 
 export type SessionPayload = {
@@ -103,11 +127,13 @@ export type SessionPayload = {
   current_set: number | null;
   target_sets: number | null;
   target_reps: number | null;
+  target_metric: TargetMetric | null;
   target_weight: string | null;
   target_rest_seconds: number | null;
   details: string[];
   is_combination: boolean;
   components: string[];
+  component_targets: ExerciseSummary["component_targets"];
   primary_component: string | null;
   suggested_session_name: string | null;
   plan_date: string;
@@ -192,6 +218,9 @@ export type TrainingHistoryEntry = {
   exercise_name: string;
   set_number: number;
   actual_reps: number | null;
+  actual_metric_type: TargetMetric["type"] | null;
+  actual_value: number | null;
+  actual_unit: string | null;
   actual_weight: string | null;
   rpe: number | null;
   notes: string | null;
@@ -199,6 +228,58 @@ export type TrainingHistoryEntry = {
   log_date: string;
   plan_date: string | null;
   session_notes: string | null;
+};
+
+export type TrainingHistorySet = {
+  set_number: number;
+  round_number: number | null;
+  component_index: number | null;
+  component_name: string | null;
+  actual_reps: number | null;
+  actual_metric_type: TargetMetric["type"] | null;
+  actual_value: number | null;
+  actual_unit: string | null;
+  actual_weight: string | null;
+  rpe: number | null;
+  notes: string | null;
+  rest_seconds: number | null;
+  log_date: string;
+};
+
+export type TrainingHistoryExercise = {
+  exercise_name: string;
+  group_type: string;
+  component_count: number;
+  total_sets: number;
+  total_reps: number | null;
+  total_value: number | null;
+  actual_unit: string | null;
+  weights: string[];
+  avg_rpe: number | null;
+  notes: string[];
+  sets: TrainingHistorySet[];
+  rounds: Array<{
+    round_number: number;
+    components: TrainingHistorySet[];
+  }>;
+};
+
+export type TrainingHistorySession = {
+  session_id: string;
+  plan_date: string | null;
+  status: string;
+  session_name: string | null;
+  session_slot: string | null;
+  session_slot_label: string;
+  session_rpe: number | null;
+  duration_minutes: number | null;
+  session_load: number | null;
+  started_at: string;
+  completed_at: string | null;
+  notes: string | null;
+  total_sets: number;
+  exercise_count: number;
+  exercises: TrainingHistoryExercise[];
 };
 
 function getTodayIsoDate(): string {
@@ -306,6 +387,118 @@ function splitCombination(name: string): string[] {
     .filter(Boolean);
 }
 
+function splitTargetText(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .replaceAll("＋", "+")
+    .split(/\s*[+&/]\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function parseRepTarget(value: string | null): number | null {
+  return extractNumber(value ?? "");
+}
+
+function targetMetricFor(exerciseName: string, value: string | null): TargetMetric {
+  const text = String(value || "").trim();
+  const numericValues = extractNumericValues(text);
+  const firstValue = numericValues.length ? numericValues[0] : null;
+  const normalized = text.toLowerCase();
+
+  if (!text) {
+    return { type: "reps", value: null, unit: "次", label: "" };
+  }
+  if (/(秒|secs?\b|sec\b)/.test(normalized)) {
+    return { type: "duration", value: firstValue, unit: "秒", label: firstValue !== null ? `${firstValue} 秒` : text };
+  }
+  if (/(分钟|mins?|min|分)/.test(normalized)) {
+    return { type: "duration", value: firstValue, unit: "分钟", label: firstValue !== null ? `${firstValue} 分钟` : text };
+  }
+  if (/(米|m\b)/.test(normalized)) {
+    return { type: "distance", value: firstValue, unit: "米", label: firstValue !== null ? `${firstValue} 米` : text };
+  }
+  if (DISTANCE_EXERCISE_PATTERN.test(exerciseName) && firstValue !== null) {
+    return { type: "distance", value: firstValue, unit: "米", label: `${firstValue} 米` };
+  }
+  if (DURATION_EXERCISE_PATTERN.test(exerciseName) && firstValue !== null) {
+    return { type: "duration", value: firstValue, unit: "秒", label: `${firstValue} 秒` };
+  }
+  if (firstValue !== null) {
+    return { type: "reps", value: firstValue, unit: "次", label: `${firstValue} 次` };
+  }
+
+  return { type: "custom", value: null, unit: null, label: text };
+}
+
+function defaultUnitForMetric(metricType: TargetMetric["type"] | null | undefined): string | null {
+  if (metricType === "distance") {
+    return "米";
+  }
+  if (metricType === "duration") {
+    return "秒";
+  }
+  if (metricType === "reps") {
+    return "次";
+  }
+  return null;
+}
+
+function actualMetricPayload(
+  value: unknown,
+  targetMetric: TargetMetric | null | undefined,
+) {
+  const actualValue = parseOptionalFloat(value);
+  const metricType = targetMetric?.type || "reps";
+  const unit = targetMetric?.unit || defaultUnitForMetric(metricType);
+
+  return {
+    actual_reps: parseOptionalInt(value),
+    actual_metric_type: metricType,
+    actual_value: actualValue,
+    actual_unit: unit,
+  };
+}
+
+function actualMetricValue(log: Pick<TrainingSetRecord, "actual_value" | "actual_reps">): number | null {
+  return parseOptionalFloat(log.actual_value) ?? parseOptionalFloat(log.actual_reps);
+}
+
+function actualMetricUnit(
+  log: Pick<TrainingSetRecord, "actual_unit" | "actual_metric_type" | "actual_reps">,
+  exerciseName: string,
+): string | null {
+  if (log.actual_unit) {
+    return log.actual_unit;
+  }
+  if (log.actual_metric_type) {
+    return defaultUnitForMetric(log.actual_metric_type);
+  }
+  const value = log.actual_reps === null || log.actual_reps === undefined ? null : String(log.actual_reps);
+  return targetMetricFor(exerciseName, value).unit;
+}
+
+function buildComponentTargets(
+  components: string[],
+  repsText: string | null,
+  weightText: string | null,
+): ExerciseSummary["component_targets"] {
+  if (!components.length) {
+    return [];
+  }
+
+  const repParts = splitTargetText(repsText);
+  const weightParts = splitTargetText(weightText);
+  return components.map((componentName, index) => ({
+    component_name: componentName,
+    target_reps: parseRepTarget(repParts[index] ?? repParts[0] ?? null),
+    target_weight: weightParts[index] ?? weightParts[0] ?? null,
+    target_metric: targetMetricFor(componentName, repParts[index] ?? repParts[0] ?? null),
+  }));
+}
+
 function categorizeEntry(name: string): string {
   const lowered = name.trim().toLowerCase();
   if (!lowered) {
@@ -364,6 +557,8 @@ export function summarisePlan(record: WorkoutPlanRecord | null): PlanSummary {
     let targetReps: number | null = null;
     let targetWeight: string | null = null;
     let targetRestSeconds: number | null = null;
+    let targetRepsText: string | null = null;
+    let targetWeightText: string | null = null;
 
     for (const [cellIndex, header] of headers.entries()) {
       const value = values[cellIndex] || "";
@@ -383,16 +578,21 @@ export function summarisePlan(record: WorkoutPlanRecord | null): PlanSummary {
       }
       if ((header.includes("次") || loweredHeader.includes("rep")) && targetReps === null) {
         targetReps = extractNumber(value);
+        targetRepsText = value;
       }
       if ((header.includes("重") || loweredHeader.includes("kg")) && targetWeight === null) {
         targetWeight = value;
+        targetWeightText = value;
       }
       if (targetRestSeconds === null && isRestHeader(header)) {
         targetRestSeconds = parseRestSeconds(value);
       }
       if (pair) {
         targetSets = targetSets ?? pair[0];
-        targetReps = targetReps ?? pair[1];
+        if (targetReps === null) {
+          targetReps = pair[1];
+          targetRepsText = String(pair[1]);
+        }
       }
       if (
         targetRestSeconds === null &&
@@ -442,14 +642,18 @@ export function summarisePlan(record: WorkoutPlanRecord | null): PlanSummary {
       targetRestSeconds = null;
     }
 
+    const targetMetricText = isTrackable ? targetRepsText ?? (targetReps !== null ? String(targetReps) : null) : null;
+
     exercises.push({
       exercise_name: exercise,
       phase: record.phase,
       components,
+      component_targets: buildComponentTargets(components, targetMetricText, targetWeightText),
       primary_component: components[0] || exercise,
       is_combination: isCombination,
       target_sets: targetSets,
       target_reps: targetReps,
+      target_metric: targetMetricFor(exercise, targetMetricText),
       target_weight: targetWeight,
       target_rest_seconds: targetRestSeconds,
       details,
@@ -478,7 +682,9 @@ export function summarisePlan(record: WorkoutPlanRecord | null): PlanSummary {
 function determineNextStep(planSummary: PlanSummary, logs: TrainingSetRecord[]) {
   const counts = new Map<string, number>();
   for (const log of logs) {
-    counts.set(log.exercise, Math.max(counts.get(log.exercise) || 0, Number(log.set_number || 0)));
+    const key = log.group_name || log.exercise;
+    const completedRound = Number(log.round_number || log.set_number || 0);
+    counts.set(key, Math.max(counts.get(key) || 0, completedRound));
   }
 
   for (const entry of planSummary.exercises) {
@@ -495,11 +701,13 @@ function determineNextStep(planSummary: PlanSummary, logs: TrainingSetRecord[]) 
         next_set: logged + 1,
         target_sets: entry.target_sets,
         target_reps: entry.target_reps,
+        target_metric: entry.target_metric,
         target_weight: entry.target_weight,
         target_rest_seconds: entry.target_rest_seconds,
         details: entry.details,
         is_combination: entry.is_combination,
         components: entry.components,
+        component_targets: entry.component_targets,
         primary_component: entry.primary_component,
       };
     }
@@ -547,11 +755,13 @@ function buildSessionPayload(
       current_set: null,
       target_sets: null,
       target_reps: null,
+      target_metric: null,
       target_weight: null,
       target_rest_seconds: null,
       details: [],
       is_combination: false,
       components: [],
+      component_targets: [],
       primary_component: null,
       suggested_session_name: session.session_name || logs[0]?.exercise || null,
       plan_date: session.plan_date,
@@ -567,11 +777,13 @@ function buildSessionPayload(
     current_set: nextStep.next_set,
     target_sets: nextStep.target_sets,
     target_reps: nextStep.target_reps,
+    target_metric: nextStep.target_metric,
     target_weight: nextStep.target_weight,
     target_rest_seconds: nextStep.target_rest_seconds,
     details: nextStep.details,
     is_combination: nextStep.is_combination,
     components: nextStep.components,
+    component_targets: nextStep.component_targets,
     primary_component: nextStep.primary_component,
     suggested_session_name: session.session_name || logs[0]?.exercise || null,
     plan_date: session.plan_date,
@@ -1047,6 +1259,13 @@ export async function recordNextSet(input: {
   actual_weight?: string | null;
   rpe?: number | string | null;
   notes?: string | null;
+  component_logs?: Array<{
+    component_name?: string | null;
+    actual_reps?: number | string | null;
+    actual_weight?: string | null;
+    rpe?: number | string | null;
+    notes?: string | null;
+  }>;
   rest_interval_seconds?: number | string | null;
 }) {
   const sessionId = cleanText(input.session_id);
@@ -1078,30 +1297,76 @@ export async function recordNextSet(input: {
     nextStep.target_rest_seconds ??
     sessionState.session.rest_interval_seconds ??
     90;
-  const setNumber = await nextSetNumber(sessionId, nextStep.exercise);
+  const setNumber = nextStep.next_set;
+  const componentInputs = Array.isArray(input.component_logs) ? input.component_logs : [];
   const client = createSupabaseAdminClient();
+  const completedAt = nowIso();
+  const insertRows = nextStep.is_combination
+    ? (nextStep.component_targets.length
+        ? nextStep.component_targets
+        : nextStep.components.map((componentName) => ({
+            component_name: componentName,
+            target_reps: null,
+            target_weight: null,
+            target_metric: targetMetricFor(componentName, null),
+          })))
+        .map((target, index) => {
+          const provided = componentInputs[index] || componentInputs.find((item) => item.component_name === target.component_name) || {};
+          const componentRpe = parseOptionalFloat(provided.rpe);
+          if (provided.rpe !== null && provided.rpe !== undefined && provided.rpe !== "" && componentRpe === null) {
+            throw new Error(`${target.component_name} RPE 需要使用数字`);
+          }
+          if (componentRpe !== null && (componentRpe < 1 || componentRpe > 10)) {
+            throw new Error(`${target.component_name} RPE 范围为 1 到 10`);
+          }
+          const actualMetric = actualMetricPayload(provided.actual_reps, target.target_metric);
+
+          return {
+            id: crypto.randomUUID(),
+            session_id: sessionId,
+            exercise: target.component_name,
+            set_number: setNumber,
+            group_name: nextStep.exercise,
+            group_type: "superset",
+            round_number: setNumber,
+            component_index: index + 1,
+            component_name: target.component_name,
+            ...actualMetric,
+            actual_weight: cleanText(provided.actual_weight),
+            notes: cleanText(provided.notes),
+            rest_seconds: effectiveRest,
+            rpe: componentRpe,
+            completed_at: completedAt,
+          };
+        })
+    : [{
+        id: crypto.randomUUID(),
+        session_id: sessionId,
+        exercise: nextStep.exercise,
+        set_number: setNumber,
+        group_name: null,
+        group_type: "single",
+        round_number: setNumber,
+        component_index: 1,
+        component_name: nextStep.exercise,
+        ...actualMetricPayload(input.actual_reps, nextStep.target_metric),
+        actual_weight: cleanText(input.actual_weight),
+        notes: cleanText(input.notes),
+        rest_seconds: effectiveRest,
+        rpe,
+        completed_at: completedAt,
+      }];
+
   const { data, error } = await client
     .from("training_sets")
-    .insert({
-      id: crypto.randomUUID(),
-      session_id: sessionId,
-      exercise: nextStep.exercise,
-      set_number: setNumber,
-      actual_reps: parseOptionalInt(input.actual_reps),
-      actual_weight: cleanText(input.actual_weight),
-      notes: cleanText(input.notes),
-      rest_seconds: effectiveRest,
-      rpe,
-      completed_at: nowIso(),
-    })
-    .select("*")
-    .single();
+    .insert(insertRows)
+    .select("*");
 
   if (error) {
     throw error;
   }
 
-  const lastLog = data as TrainingSetRecord;
+  const lastLogs = (data || []) as TrainingSetRecord[];
   const updated = await getSessionPayloadById(sessionId);
   if (!updated) {
     throw new Error("Session not found after update");
@@ -1111,7 +1376,7 @@ export async function recordNextSet(input: {
   if (!next) {
     return {
       ...updated.payload,
-      last_log: lastLog,
+      last_logs: lastLogs,
     };
   }
 
@@ -1122,17 +1387,19 @@ export async function recordNextSet(input: {
     current_set: next.next_set,
     target_sets: next.target_sets,
     target_reps: next.target_reps,
+    target_metric: next.target_metric,
     target_weight: next.target_weight,
     target_rest_seconds: next.target_rest_seconds,
     details: next.details,
     is_combination: next.is_combination,
     components: next.components,
+    component_targets: next.component_targets,
     primary_component: next.primary_component,
     rest_seconds: restSeconds,
     rest_end_time: restFinishesAt(restSeconds),
     session: updated.payload.session,
     plan: updated.plan,
-    last_log: lastLog,
+    last_logs: lastLogs,
   };
 }
 
@@ -1388,6 +1655,9 @@ export async function listTrainingHistory(limit = 30): Promise<TrainingHistoryEn
       exercise_name: log.exercise,
       set_number: Number(log.set_number || 0),
       actual_reps: log.actual_reps,
+      actual_metric_type: log.actual_metric_type ?? null,
+      actual_value: actualMetricValue(log),
+      actual_unit: actualMetricUnit(log, log.component_name || log.exercise),
       actual_weight: log.actual_weight,
       rpe: log.rpe,
       notes: log.notes,
@@ -1395,6 +1665,166 @@ export async function listTrainingHistory(limit = 30): Promise<TrainingHistoryEn
       log_date: log.completed_at,
       plan_date: session?.plan_date ?? null,
       session_notes: session?.notes ?? null,
+    };
+  });
+}
+
+export async function listTrainingHistorySessions(limit = 20): Promise<TrainingHistorySession[]> {
+  const client = createSupabaseAdminClient();
+  const { data: sessionRows, error } = await client
+    .from("training_sessions")
+    .select("*")
+    .in("status", ["completed", "ready_to_finish"])
+    .order("completed_at", { ascending: false, nullsFirst: false })
+    .order("started_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  const sessions = (sessionRows || []).map((row) => normalizeSessionRecord(row as TrainingSessionRecord));
+  const sessionIds = sessions.map((session) => session.id);
+  let logsBySession = new Map<string, TrainingSetRecord[]>();
+
+  if (sessionIds.length) {
+    const { data: setRows, error: setError } = await client
+      .from("training_sets")
+      .select("*")
+      .in("session_id", sessionIds)
+      .order("completed_at", { ascending: true });
+
+    if (setError) {
+      throw setError;
+    }
+
+    logsBySession = (setRows || []).reduce((acc, row) => {
+      const log = row as TrainingSetRecord;
+      const current = acc.get(log.session_id) || [];
+      current.push(log);
+      acc.set(log.session_id, current);
+      return acc;
+    }, new Map<string, TrainingSetRecord[]>());
+  }
+
+  return sessions.map((session) => {
+    const logs = logsBySession.get(session.id) || [];
+    const exerciseMap = new Map<string, TrainingSetRecord[]>();
+    logs.forEach((log) => {
+      const key = log.group_name || log.exercise;
+      const current = exerciseMap.get(key) || [];
+      current.push(log);
+      exerciseMap.set(key, current);
+    });
+
+    const exercises = Array.from(exerciseMap.entries()).map(([exerciseName, exerciseLogs]) => {
+      const sortedLogs = [...exerciseLogs].sort((left, right) => {
+        const leftRound = Number(left.round_number || left.set_number || 0);
+        const rightRound = Number(right.round_number || right.set_number || 0);
+        if (leftRound !== rightRound) {
+          return leftRound - rightRound;
+        }
+        return Number(left.component_index || 0) - Number(right.component_index || 0);
+      });
+      const groupType = sortedLogs[0]?.group_type || (sortedLogs[0]?.group_name ? "superset" : "single");
+      const roundNumbers = Array.from(
+        new Set(sortedLogs.map((log) => Number(log.round_number || log.set_number || 0)).filter(Boolean)),
+      );
+      const componentNames = Array.from(
+        new Set(sortedLogs.map((log) => cleanText(log.component_name || log.exercise)).filter((value): value is string => Boolean(value))),
+      );
+      const reps = exerciseLogs
+        .map((log) => log.actual_reps)
+        .filter((value): value is number => value !== null && value !== undefined);
+      const metricValues = exerciseLogs
+        .map((log) => actualMetricValue(log))
+        .filter((value): value is number => value !== null && value !== undefined);
+      const metricUnits = Array.from(
+        new Set(
+          exerciseLogs
+            .map((log) => actualMetricUnit(log, log.component_name || log.exercise))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+      const rpes = exerciseLogs
+        .map((log) => log.rpe)
+        .filter((value): value is number => value !== null && value !== undefined);
+      const weights = Array.from(
+        new Set(
+          exerciseLogs
+            .map((log) => cleanText(log.actual_weight))
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+      const notes = exerciseLogs
+        .map((log) => cleanText(log.notes))
+        .filter((value): value is string => Boolean(value));
+
+      return {
+        exercise_name: exerciseName,
+        group_type: groupType,
+        component_count: componentNames.length || 1,
+        total_sets: groupType === "superset" ? roundNumbers.length : sortedLogs.length,
+        total_reps: reps.length ? reps.reduce((sum, value) => sum + value, 0) : null,
+        total_value: metricValues.length && metricUnits.length <= 1 ? metricValues.reduce((sum, value) => sum + value, 0) : null,
+        actual_unit: metricUnits.length === 1 ? metricUnits[0] : null,
+        weights,
+        avg_rpe: rpes.length ? round(rpes.reduce((sum, value) => sum + value, 0) / rpes.length, 1) : null,
+        notes,
+        sets: sortedLogs.map((log) => ({
+          set_number: Number(log.set_number || 0),
+          round_number: log.round_number ?? null,
+          component_index: log.component_index ?? null,
+          component_name: log.component_name ?? null,
+          actual_reps: log.actual_reps,
+          actual_metric_type: log.actual_metric_type ?? null,
+          actual_value: actualMetricValue(log),
+          actual_unit: actualMetricUnit(log, log.component_name || log.exercise),
+          actual_weight: log.actual_weight,
+          rpe: log.rpe,
+          notes: log.notes,
+          rest_seconds: log.rest_seconds,
+          log_date: log.completed_at,
+        })),
+        rounds: roundNumbers.map((roundNumber) => ({
+          round_number: roundNumber,
+          components: sortedLogs
+            .filter((log) => Number(log.round_number || log.set_number || 0) === roundNumber)
+            .map((log) => ({
+              set_number: Number(log.set_number || 0),
+              round_number: log.round_number ?? null,
+              component_index: log.component_index ?? null,
+              component_name: log.component_name ?? null,
+              actual_reps: log.actual_reps,
+              actual_metric_type: log.actual_metric_type ?? null,
+              actual_value: actualMetricValue(log),
+              actual_unit: actualMetricUnit(log, log.component_name || log.exercise),
+              actual_weight: log.actual_weight,
+              rpe: log.rpe,
+              notes: log.notes,
+              rest_seconds: log.rest_seconds,
+              log_date: log.completed_at,
+            })),
+        })),
+      };
+    });
+
+    return {
+      session_id: session.id,
+      plan_date: session.plan_date ?? null,
+      status: session.status,
+      session_name: session.session_name,
+      session_slot: session.session_slot,
+      session_slot_label: toSlotLabel(session.session_slot),
+      session_rpe: session.session_rpe,
+      duration_minutes: session.duration_minutes,
+      session_load: session.session_load,
+      started_at: session.started_at,
+      completed_at: session.completed_at,
+      notes: session.notes,
+      total_sets: exercises.reduce((sum, exercise) => sum + exercise.total_sets, 0),
+      exercise_count: exercises.length,
+      exercises,
     };
   });
 }

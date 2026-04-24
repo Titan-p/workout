@@ -32,7 +32,15 @@ create table if not exists public.training_sets (
     session_id uuid references public.training_sessions(id) on delete cascade,
     exercise text not null,
     set_number integer not null,
+    group_name text,
+    group_type text default 'single',
+    round_number integer,
+    component_index integer,
+    component_name text,
     actual_reps integer,
+    actual_metric_type text,
+    actual_value numeric,
+    actual_unit text,
     actual_weight text,
     rpe numeric,
     rest_seconds integer,
@@ -72,6 +80,14 @@ alter table if exists public.training_sets
     add column if not exists rpe numeric,
     add column if not exists rest_seconds integer,
     add column if not exists notes text,
+    add column if not exists group_name text,
+    add column if not exists group_type text default 'single',
+    add column if not exists round_number integer,
+    add column if not exists component_index integer,
+    add column if not exists component_name text,
+    add column if not exists actual_metric_type text,
+    add column if not exists actual_value numeric,
+    add column if not exists actual_unit text,
     add column if not exists completed_at timestamptz not null default now();
 
 alter table if exists public.training_day_metrics
@@ -95,6 +111,9 @@ create index if not exists training_sessions_plan_date_completed_idx
 
 create index if not exists training_sets_session_id_idx
     on public.training_sets (session_id);
+
+create index if not exists training_sets_group_round_idx
+    on public.training_sets (session_id, group_name, round_number, component_index);
 
 create unique index if not exists training_sets_unique_set
     on public.training_sets (session_id, exercise, set_number);

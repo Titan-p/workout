@@ -15,11 +15,39 @@ from typing import Any, Iterable, Optional
 LOGGER = logging.getLogger("upload_workout_plans")
 DEFAULT_ENV_FILES = ("env.local", ".env.local", ".env")
 DEFAULT_HEADERS = ["动作", "组数", "次数", "重量", "休息"]
+DEFAULT_UNIT_OVERRIDES_FILE = Path(__file__).resolve().parents[1] / "config" / "exercise_unit_overrides.json"
 WEEKDAYS = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"}
 DATE_ANCHOR_RE = re.compile(r"^\d+\.\d+$")
 SET_REP_RE = re.compile(r"(\d+)\s*[x×*]\s*(\d+)")
 REST_CLOCK_RE = re.compile(r"(\d+)\s*[:]\s*(\d+)")
 NUMERIC_RE = re.compile(r"\d+(?:\.\d+)?")
+DISTANCE_EXERCISE_RE = re.compile(r"(冲刺|加速跑|折返跑|短跑|长跑|跨步跑)")
+DURATION_EXERCISE_RE = re.compile(r"(平板支撑|支撑保持|保持|悬停|静止|定点)")
+UNIT_ALIASES = {
+    "rep": "reps",
+    "reps": "reps",
+    "count": "reps",
+    "次数": "reps",
+    "distance": "distance_m",
+    "distance_m": "distance_m",
+    "meter": "distance_m",
+    "meters": "distance_m",
+    "m": "distance_m",
+    "米": "distance_m",
+    "duration": "duration_sec",
+    "duration_sec": "duration_sec",
+    "second": "duration_sec",
+    "seconds": "duration_sec",
+    "sec": "duration_sec",
+    "s": "duration_sec",
+    "秒": "duration_sec",
+    "duration_min": "duration_min",
+    "minute": "duration_min",
+    "minutes": "duration_min",
+    "min": "duration_min",
+    "分钟": "duration_min",
+}
+VALID_UNIT_VALUES = {"reps", "distance_m", "duration_sec", "duration_min"}
 
 
 def configure_logging(verbose: bool) -> None:
@@ -128,6 +156,124 @@ def normalize_plus(text: str) -> str:
     return text.replace("＋", "+").strip()
 
 
+def split_target_parts(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [
+        part.strip()
+        for part in normalize_plus(str(value)).split("+")
+        if part.strip()
+    ]
+
+
+def normalize_unit_value(value: Any) -> str | None:
+    unit = UNIT_ALIASES.get(str(value or "").strip().lower())
+    return unit if unit in VALID_UNIT_VALUES else None
+
+
+def load_exercise_unit_overrides(path: str | None = None) -> dict[str, str]:
+    override_path = Path(path) if path else DEFAULT_UNIT_OVERRIDES_FILE
+    if not override_path.is_file():
+        if path:
+            raise RuntimeError(f"Exercise unit override file not found: {override_path}")
+        return {}
+
+    payload = json.loads(override_path.read_text(encoding="utf-8"))
+    raw_units = payload.get("units", payload) if isinstance(payload, dict) else {}
+    if not isinstance(raw_units, dict):
+        raise RuntimeError(f"Exercise unit override file has invalid units: {override_path}")
+
+    units: dict[str, str] = {}
+    for exercise_name, raw_unit in raw_units.items():
+        name = str(exercise_name or "").strip()
+        unit = normalize_unit_value(raw_unit)
+        if name and unit:
+            units[name] = unit
+    return units
+
+
+def apply_unit_label(number: int, unit: str, fallback: str) -> str:
+    if unit == "distance_m":
+        return f"{number}米"
+    if unit == "duration_sec":
+        return f"{number}秒"
+    if unit == "duration_min":
+        return f"{number}分钟"
+    if unit == "reps":
+        return str(number)
+    return fallback
+
+
+def resolve_override_unit(exercise_name: str, unit_overrides: dict[str, str] | None) -> str | None:
+    if not unit_overrides:
+        return None
+
+    normalized_name = normalize_plus(exercise_name)
+    for name in (exercise_name, normalized_name):
+        unit = unit_overrides.get(name)
+        if unit:
+            return unit
+    return None
+
+
+def normalize_target_metric_label(
+    exercise_name: str,
+    value: str | None,
+    header: str = "",
+    unit_overrides: dict[str, str] | None = None,
+) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    number = extract_number(text)
+    if number is None:
+        return text
+
+    normalized = text.lower()
+    header_lower = header.lower()
+    if re.search(r"(秒|secs?\b|sec\b)", normalized):
+        return f"{number}秒"
+    if re.search(r"(分钟|mins?|min|分)", normalized) or any(token in header_lower for token in ("duration", "time", "时长")):
+        return f"{number}分钟"
+    if re.search(r"(米|m\b)", normalized):
+        return f"{number}米"
+    override_unit = resolve_override_unit(exercise_name, unit_overrides)
+    if override_unit:
+        return apply_unit_label(number, override_unit, str(number))
+    if DISTANCE_EXERCISE_RE.search(exercise_name):
+        return f"{number}米"
+    if DURATION_EXERCISE_RE.search(exercise_name):
+        return f"{number}秒"
+    return str(number)
+
+
+def normalize_component_target_labels(
+    exercise_name: str,
+    target_reps: str | None,
+    header: str = "",
+    unit_overrides: dict[str, str] | None = None,
+) -> str | None:
+    if not target_reps:
+        return target_reps
+
+    components = split_target_parts(exercise_name)
+    parts = split_target_parts(target_reps)
+    if len(components) > 1 and len(parts) > 1:
+        labels = [
+            normalize_target_metric_label(
+                components[index] if index < len(components) else exercise_name,
+                part,
+                header,
+                unit_overrides,
+            )
+            for index, part in enumerate(parts)
+        ]
+        return "+".join(labels)
+
+    return normalize_target_metric_label(exercise_name, target_reps, header, unit_overrides)
+
+
 def categorize_entry(name: str) -> str:
     lowered = name.lower()
     if not lowered:
@@ -227,6 +373,7 @@ def parse_workout_plans_from_kdocs(
     file_id: str,
     year: int,
     cli_bin: str,
+    unit_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     sheets_data = run_kdocs_json(cli_bin, "sheet", "get-sheets-info", {"file_id": file_id})
     sheets = sheets_data["data"]["detail"]["sheetsInfo"]
@@ -285,6 +432,7 @@ def parse_workout_plans_from_kdocs(
                     details: list[str] = []
                     target_sets: Optional[str] = None
                     target_reps: Optional[str] = None
+                    target_reps_header: str = ""
                     target_weight: Optional[str] = None
                     target_rest_seconds: Optional[int] = None
 
@@ -307,6 +455,7 @@ def parse_workout_plans_from_kdocs(
                                 target_sets = str(number) if number is not None else value
 
                         if ("次" in header or "rep" in lowered_header) and target_reps is None:
+                            target_reps_header = header
                             if "+" in normalized_value:
                                 target_reps = normalized_value
                             else:
@@ -323,6 +472,7 @@ def parse_workout_plans_from_kdocs(
                             if target_sets is None:
                                 target_sets = str(pair[0])
                             if target_reps is None:
+                                target_reps_header = header
                                 target_reps = str(pair[1])
 
                     if target_rest_seconds is None:
@@ -352,6 +502,13 @@ def parse_workout_plans_from_kdocs(
                             if part.strip()
                         ]
                         is_combination = True
+
+                    target_reps = normalize_component_target_labels(
+                        exercise_name,
+                        target_reps,
+                        target_reps_header,
+                        unit_overrides,
+                    )
 
                     exercises.append(
                         {
@@ -491,6 +648,10 @@ def parse_args() -> argparse.Namespace:
         help="Path to the kdocs-cli binary. Defaults to KDOCS_CLI_BIN or PATH lookup.",
     )
     parser.add_argument(
+        "--unit-overrides-file",
+        help="Exercise unit overrides JSON. Defaults to config/exercise_unit_overrides.json.",
+    )
+    parser.add_argument(
         "--batch-size",
         type=int,
         default=50,
@@ -521,8 +682,11 @@ def main() -> int:
     supabase_key = resolve_required_env("SUPABASE_SERVICE_ROLE_KEY")
     file_id = args.file_id or resolve_required_env("KDOCS_WORKOUT_FILE_ID")
     kdocs_cli = resolve_kdocs_cli(args.kdocs_cli)
+    unit_overrides = load_exercise_unit_overrides(args.unit_overrides_file)
+    if unit_overrides:
+        LOGGER.info("Loaded exercise unit overrides: %d entries", len(unit_overrides))
 
-    parsed = parse_workout_plans_from_kdocs(file_id, args.year, cli_bin=kdocs_cli)
+    parsed = parse_workout_plans_from_kdocs(file_id, args.year, cli_bin=kdocs_cli, unit_overrides=unit_overrides)
     rows = build_workout_plan_rows(parsed)
 
     if not rows:

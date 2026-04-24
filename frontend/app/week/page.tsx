@@ -45,7 +45,7 @@ export default async function WeekPage({
         <div className="status-pill">{payload.training_days} 天训练</div>
       </header>
 
-      <div className="action-row" style={{ marginBottom: 12 }}>
+      <div className="action-row toolbar-row">
         <Link className="ghost-button" href={`/week?week=${week - 1}&date=${date}`}>
           <ChevronLeft size={17} />
           上周
@@ -56,6 +56,10 @@ export default async function WeekPage({
         </Link>
         <Link className="primary-button" href="/">
           今日
+        </Link>
+        <Link className="ghost-button" href={`/training?date=${date}`}>
+          <Dumbbell size={17} />
+          训练控制台
         </Link>
       </div>
 

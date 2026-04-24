@@ -3,6 +3,7 @@
 import {
   Activity,
   BarChart3,
+  CalendarDays,
   Check,
   Clock,
   Dumbbell,
@@ -16,13 +17,15 @@ import {
   Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import type {
   LoadMonitorDayPayload,
   LoadMonitorWeekPayload,
   PlanSummary,
   SessionPayload,
-  TrainingHistoryEntry,
+  TargetMetric,
+  TrainingHistorySession,
   TrainingPageSnapshot,
 } from "@/lib/workout";
 
@@ -31,7 +34,32 @@ type Feedback = { tone: "info" | "success" | "error"; text: string } | null;
 type NextSetResponse = Omit<SessionPayload, "status"> & {
   status: SessionPayload["status"] | "rest";
   rest_end_time?: string;
-  last_log?: unknown;
+  last_logs?: unknown;
+};
+
+type ComponentSetForm = {
+  component_name: string;
+  metric_label: string;
+  target_label: string;
+  actual_reps: string;
+  actual_weight: string;
+  rpe: string;
+  notes: string;
+};
+
+type SetForm = {
+  actual_reps: string;
+  actual_weight: string;
+  rpe: string;
+  notes: string;
+};
+
+type SetFormSource = {
+  status: string;
+  is_combination: boolean;
+  target_reps: number | null;
+  target_metric: TargetMetric | null;
+  target_weight: string | null;
 };
 
 type FinishForm = {
@@ -69,6 +97,70 @@ function formatRestSeconds(value: number | null | undefined): string {
     return `${value / 60} 分钟`;
   }
   return `${value} 秒`;
+}
+
+function metricInputLabel(metric: TargetMetric | null | undefined): string {
+  if (metric?.type === "distance") {
+    return "距离";
+  }
+  if (metric?.type === "duration") {
+    return "时长";
+  }
+  return "次数";
+}
+
+function metricValueLabel(metric: TargetMetric | null | undefined): string {
+  return metric?.label || "";
+}
+
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+function formatMetricValue(value: number | null | undefined, unit: string | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "-";
+  }
+  return unit ? `${formatNumber(value)} ${unit}` : formatNumber(value);
+}
+
+function formatActualMetric(
+  set: Pick<
+    TrainingHistorySession["exercises"][number]["sets"][number],
+    "actual_value" | "actual_unit" | "actual_reps"
+  >,
+): string {
+  return formatMetricValue(set.actual_value ?? set.actual_reps, set.actual_unit || "次");
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatSetLine(set: TrainingHistorySession["exercises"][number]["sets"][number]): string {
+  return [
+    `第 ${set.set_number} 组`,
+    formatActualMetric(set),
+    set.actual_weight || "-",
+    `RPE ${set.rpe ?? "-"}`,
+  ].join(" · ");
+}
+
+function formatComponentLine(set: TrainingHistorySession["exercises"][number]["sets"][number]): string {
+  return [
+    set.component_name || "动作",
+    formatActualMetric(set),
+    set.actual_weight || "-",
+    `RPE ${set.rpe ?? "-"}`,
+  ].join(" · ");
 }
 
 function elapsedMinutes(startedAt: string | null | undefined): number {
@@ -120,13 +212,52 @@ function buildFinishForm(session: SessionPayload, loadDay: LoadMonitorDayPayload
   };
 }
 
+function buildComponentSetForms(session: SessionPayload | null): ComponentSetForm[] {
+  if (!session?.is_combination) {
+    return [];
+  }
+
+  const targets = session.component_targets.length
+    ? session.component_targets
+    : session.components.map((componentName) => ({
+        component_name: componentName,
+        target_reps: null,
+        target_weight: null,
+        target_metric: { type: "reps", value: null, unit: "次", label: "" } satisfies TargetMetric,
+      }));
+
+  return targets.map((target) => ({
+    component_name: target.component_name,
+    metric_label: metricInputLabel(target.target_metric),
+    target_label: metricValueLabel(target.target_metric),
+    actual_reps: target.target_metric.value !== null ? String(target.target_metric.value) : target.target_reps ? String(target.target_reps) : "",
+    actual_weight: target.target_weight || "",
+    rpe: "",
+    notes: "",
+  }));
+}
+
+function buildSingleSetForm(session: SetFormSource | null): SetForm {
+  if (!session || session.is_combination || session.status === "ready_to_finish" || session.status === "completed") {
+    return { actual_reps: "", actual_weight: "", rpe: "", notes: "" };
+  }
+  return {
+    actual_reps: session.target_metric?.value !== null && session.target_metric?.value !== undefined
+      ? String(session.target_metric.value)
+      : session.target_reps ? String(session.target_reps) : "",
+    actual_weight: session.target_weight || "",
+    rpe: "",
+    notes: "",
+  };
+}
+
 export default function TrainingClient({ initialSnapshot }: { initialSnapshot: TrainingPageSnapshot }) {
   const [activeTab, setActiveTab] = useState<TabKey>("training");
   const [plan, setPlan] = useState<PlanSummary>(initialSnapshot.plan);
   const [session, setSession] = useState<SessionPayload | null>(initialSnapshot.currentSession);
   const [loadDay, setLoadDay] = useState<LoadMonitorDayPayload>(initialSnapshot.loadMonitorDay);
   const [loadWeek, setLoadWeek] = useState<LoadMonitorWeekPayload | null>(null);
-  const [history, setHistory] = useState<TrainingHistoryEntry[]>([]);
+  const [history, setHistory] = useState<TrainingHistorySession[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -148,12 +279,10 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
           notes: "",
         },
   );
-  const [setForm, setSetForm] = useState({
-    actual_reps: "",
-    actual_weight: "",
-    rpe: "",
-    notes: "",
-  });
+  const [setForm, setSetForm] = useState<SetForm>(() => buildSingleSetForm(initialSnapshot.currentSession));
+  const [componentForms, setComponentForms] = useState<ComponentSetForm[]>(() =>
+    buildComponentSetForms(initialSnapshot.currentSession),
+  );
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -171,6 +300,14 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     return () => window.clearInterval(timer);
   }, [restEndTime]);
 
+  useEffect(() => {
+    setComponentForms(buildComponentSetForms(session));
+  }, [session]);
+
+  useEffect(() => {
+    setSetForm(buildSingleSetForm(session));
+  }, [session]);
+
   async function refreshSnapshot() {
     const snapshot = await apiJson<TrainingPageSnapshot>(`/api/training/snapshot?date=${initialSnapshot.date}`);
     setPlan(snapshot.plan);
@@ -187,7 +324,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     if (historyLoaded && !force) {
       return;
     }
-    const payload = await apiJson<TrainingHistoryEntry[]>("/api/training-history");
+    const payload = await apiJson<TrainingHistorySession[]>("/api/training-history");
     setHistory(payload);
     setHistoryLoaded(true);
   }
@@ -217,6 +354,12 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     setFinishForm((current) => ({ ...current, [field]: value }));
   }
 
+  function changeComponentField(index: number, field: keyof ComponentSetForm, value: string) {
+    setComponentForms((current) =>
+      current.map((item, itemIndex) => (itemIndex === index ? { ...item, [field]: value } : item)),
+    );
+  }
+
   async function startTraining() {
     await runAction("start", async () => {
       const payload = await apiJson<SessionPayload>("/api/start-training", {
@@ -239,13 +382,24 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     await runAction("set", async () => {
       const payload = await apiJson<NextSetResponse>("/api/next-set", {
         method: "POST",
-        body: JSON.stringify({
-          session_id: session.session.session_id,
-          actual_reps: setForm.actual_reps || null,
-          actual_weight: setForm.actual_weight || null,
-          rpe: setForm.rpe || null,
-          notes: setForm.notes || null,
-        }),
+        body: JSON.stringify(session.is_combination
+          ? {
+              session_id: session.session.session_id,
+              component_logs: componentForms.map((component) => ({
+                component_name: component.component_name,
+                actual_reps: component.actual_reps || null,
+                actual_weight: component.actual_weight || null,
+                rpe: component.rpe || null,
+                notes: component.notes || null,
+              })),
+            }
+          : {
+              session_id: session.session.session_id,
+              actual_reps: setForm.actual_reps || null,
+              actual_weight: setForm.actual_weight || null,
+              rpe: setForm.rpe || null,
+              notes: setForm.notes || null,
+            }),
       });
       setSetForm({ actual_reps: "", actual_weight: "", rpe: "", notes: "" });
       setSession((payload.status === "rest" ? {
@@ -255,7 +409,9 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
       setRestEndTime(payload.rest_end_time || null);
       setFeedback({
         tone: "success",
-        text: payload.status === "ready_to_finish" ? "计划组数已完成，可以结束训练。" : "这一组已记录。",
+        text: payload.status === "ready_to_finish"
+          ? "计划组数已完成，可以结束训练。"
+          : session.is_combination ? "这一轮已记录。" : "这一组已记录。",
       });
       if (historyLoaded) {
         await refreshHistory(true);
@@ -340,7 +496,13 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
           <div className="kicker">{initialSnapshot.date}</div>
           <h1>训练控制台</h1>
         </div>
-        <div className="status-pill">{restSecondsLeft > 0 ? `休息 ${restSecondsLeft}s` : statusLabel(session)}</div>
+        <div className="topbar-actions">
+          <Link className="ghost-button" href={`/week?date=${initialSnapshot.date}`}>
+            <CalendarDays size={17} />
+            周视图
+          </Link>
+          <div className="status-pill">{restSecondsLeft > 0 ? `休息 ${restSecondsLeft}s` : statusLabel(session)}</div>
+        </div>
       </header>
 
       <nav className="tabs" aria-label="训练页签">
@@ -384,14 +546,16 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
               <>
                 <div className="target-strip">
                   <div>
-                    <span>组数</span>
-                    <strong>{session.current_set ? `第 ${session.current_set} 组` : "总结"}</strong>
+                    <span>{session.is_combination ? "轮次" : "组数"}</span>
+                    <strong>{session.current_set ? `第 ${session.current_set} ${session.is_combination ? "轮" : "组"}` : "总结"}</strong>
                   </div>
                   <div>
                     <span>目标</span>
                     <strong>
-                      {session.target_sets ? `${session.target_sets} 组` : "完成"}
-                      {session.target_reps ? ` / ${session.target_reps} 次` : ""}
+                      {session.target_sets ? `${session.target_sets} ${session.is_combination ? "轮" : "组"}` : "完成"}
+                      {session.is_combination
+                        ? ` / ${componentForms.length || session.components.length} 动作`
+                        : metricValueLabel(session.target_metric) ? ` / ${metricValueLabel(session.target_metric)}` : ""}
                     </strong>
                   </div>
                   <div>
@@ -404,10 +568,56 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
 
                 {session.status === "ready_to_finish" ? (
                   <div className="empty-state">计划组数已完成，记录总结后结束训练。</div>
+                ) : session.is_combination ? (
+                  <div className="combo-form">
+                    <div className="combo-note">
+                      连续完成下面动作后点击完成本轮，休息会在整轮之后开始。
+                    </div>
+                    {componentForms.map((component, index) => (
+                      <div key={`${component.component_name}-${index}`} className="combo-component">
+                        <div className="combo-component-head">
+                          <strong>{component.component_name}</strong>
+                          <span>{component.target_label || `动作 ${index + 1}`}</span>
+                        </div>
+                        <div className="set-form compact">
+                          <label>
+                            {component.metric_label}
+                            <input
+                              inputMode="numeric"
+                              value={component.actual_reps}
+                              onChange={(event) => changeComponentField(index, "actual_reps", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            重量
+                            <input
+                              value={component.actual_weight}
+                              onChange={(event) => changeComponentField(index, "actual_weight", event.target.value)}
+                            />
+                          </label>
+                          <label>
+                            RPE
+                            <input
+                              inputMode="decimal"
+                              value={component.rpe}
+                              onChange={(event) => changeComponentField(index, "rpe", event.target.value)}
+                            />
+                          </label>
+                          <label className="wide">
+                            备注
+                            <input
+                              value={component.notes}
+                              onChange={(event) => changeComponentField(index, "notes", event.target.value)}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <div className="set-form">
                     <label>
-                      次数
+                      {metricInputLabel(session.target_metric)}
                       <input
                         inputMode="numeric"
                         value={setForm.actual_reps}
@@ -448,7 +658,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
                   ) : (
                     <button type="button" className="primary-button" onClick={completeSet} disabled={isBusy}>
                       {busyAction === "set" ? <Loader2 className="spin" size={18} /> : <Check size={18} />}
-                      完成这组
+                      {session.is_combination ? "完成本轮" : "完成这组"}
                     </button>
                   )}
                   <button type="button" className="ghost-button" onClick={refreshSnapshot} disabled={isBusy}>
@@ -559,25 +769,77 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
           </div>
           {history.length ? (
             <div className="history-list">
-              {history.map((entry) => (
-                <div key={`${entry.session_id}-${entry.exercise_name}-${entry.set_number}-${entry.log_date}`} className="history-row">
-                  <div>
-                    <strong>{entry.exercise_name}</strong>
-                    <span>
-                      第 {entry.set_number} 组 · {entry.actual_reps ?? "-"} 次 · {entry.actual_weight || "-"} · RPE {entry.rpe ?? "-"}
-                    </span>
-                    {entry.session_notes ? <small>{entry.session_notes}</small> : null}
+              {history.map((sessionEntry) => (
+                <article key={sessionEntry.session_id} className="history-session">
+                  <div className="history-session-head">
+                    <div>
+                      <strong>{sessionEntry.session_name || sessionEntry.exercises[0]?.exercise_name || "训练会话"}</strong>
+                      <span>
+                        {sessionEntry.plan_date || "-"} · {sessionEntry.session_slot_label} · {sessionEntry.exercise_count} 动作 · {sessionEntry.total_sets} 组
+                      </span>
+                      <small>
+                        <Clock size={14} />
+                        {formatDateTime(sessionEntry.completed_at || sessionEntry.started_at)}
+                        {sessionEntry.duration_minutes ? ` · ${sessionEntry.duration_minutes} 分钟` : ""}
+                        {sessionEntry.session_rpe ? ` · RPE ${sessionEntry.session_rpe}` : ""}
+                        {sessionEntry.session_load ? ` · Load ${sessionEntry.session_load}` : ""}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="icon-button danger"
+                      onClick={() => deleteHistorySession(sessionEntry.session_id)}
+                      aria-label="删除训练"
+                      title="删除训练"
+                    >
+                      {busyAction === `delete-${sessionEntry.session_id}` ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="icon-button danger"
-                    onClick={() => deleteHistorySession(entry.session_id)}
-                    aria-label="删除训练"
-                    title="删除训练"
-                  >
-                    {busyAction === `delete-${entry.session_id}` ? <Loader2 className="spin" size={17} /> : <Trash2 size={17} />}
-                  </button>
-                </div>
+                  {sessionEntry.notes ? <p className="history-session-note">{sessionEntry.notes}</p> : null}
+                  {sessionEntry.exercises.length ? (
+                    <div className="history-exercise-grid">
+                      {sessionEntry.exercises.map((exercise) => (
+                        <div key={`${sessionEntry.session_id}-${exercise.exercise_name}`} className="history-exercise">
+                        <div className="history-exercise-head">
+                          <strong>{exercise.exercise_name}</strong>
+                          <span>{exercise.total_sets} {exercise.component_count > 1 ? "轮" : "组"}</span>
+                        </div>
+                        <div className="history-exercise-meta">
+                          {exercise.component_count > 1 ? `${exercise.component_count} 动作 · ` : ""}
+                          {exercise.total_value !== null ? formatMetricValue(exercise.total_value, exercise.actual_unit) : "次数 -"}
+                          {exercise.weights.length ? ` · ${exercise.weights.join(" / ")}` : ""}
+                          {exercise.avg_rpe !== null ? ` · 均 RPE ${exercise.avg_rpe}` : ""}
+                        </div>
+                        {exercise.component_count > 1 ? (
+                          <div className="history-round-list">
+                            {exercise.rounds.map((round) => (
+                              <div key={`${exercise.exercise_name}-round-${round.round_number}`} className="history-round">
+                                <strong>第 {round.round_number} 轮</strong>
+                                {round.components.map((set) => (
+                                  <span key={`${exercise.exercise_name}-${round.round_number}-${set.component_index}-${set.log_date}`}>
+                                    {formatComponentLine(set)}
+                                  </span>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="history-set-list">
+                            {exercise.sets.map((set) => (
+                              <div key={`${exercise.exercise_name}-${set.set_number}-${set.log_date}`} className="history-set">
+                                <span>{formatSetLine(set)}</span>
+                                {set.notes ? <small>{set.notes}</small> : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    </div>
+                  ) : (
+                    <div className="empty-state">这次训练没有组记录。</div>
+                  )}
+                </article>
               ))}
             </div>
           ) : (
@@ -669,7 +931,7 @@ function ExerciseList({ plan }: { plan: PlanSummary }) {
           </div>
           <div className="exercise-meta">
             {exercise.target_sets ? `${exercise.target_sets} 组` : ""}
-            {exercise.target_reps ? ` · ${exercise.target_reps} 次` : ""}
+            {exercise.target_metric.label ? ` · ${exercise.target_metric.label}` : ""}
             {exercise.target_weight ? ` · ${exercise.target_weight}` : ""}
             {exercise.target_rest_seconds ? ` · 休息 ${formatRestSeconds(exercise.target_rest_seconds)}` : ""}
           </div>

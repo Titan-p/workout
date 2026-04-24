@@ -53,7 +53,7 @@ export default async function HomePage() {
                 </div>
                 <div className="exercise-meta">
                   {exercise.target_sets ? `${exercise.target_sets} 组` : ""}
-                  {exercise.target_reps ? ` · ${exercise.target_reps} 次` : ""}
+                  {exercise.target_metric.label ? ` · ${exercise.target_metric.label}` : ""}
                   {exercise.target_weight ? ` · ${exercise.target_weight}` : ""}
                 </div>
               </div>

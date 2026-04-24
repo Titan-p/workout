@@ -48,4 +48,10 @@ Plan parsing and upload stay in the local Python script:
 python3 scripts/upload_workout_plans.py --env-file .env
 ```
 
+Exercise target units use `config/exercise_unit_overrides.json` before heuristic fallback. Refresh the override file locally with AI when the plan introduces new movement patterns:
+
+```bash
+python3 scripts/classify_exercise_units.py --input /path/to/parsed-plan.json --env-file .env
+```
+
 The Next.js `/api/upload-plan` endpoint returns the local command and does not parse Excel files in the web runtime.

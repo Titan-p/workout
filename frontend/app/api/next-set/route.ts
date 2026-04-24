@@ -12,6 +12,15 @@ export async function POST(request: Request) {
       actual_weight: payload.actual_weight as string | null | undefined,
       rpe: payload.rpe as string | number | null | undefined,
       notes: payload.notes as string | null | undefined,
+      component_logs: Array.isArray(payload.component_logs)
+        ? payload.component_logs as Array<{
+            component_name?: string | null;
+            actual_reps?: string | number | null;
+            actual_weight?: string | null;
+            rpe?: string | number | null;
+            notes?: string | null;
+          }>
+        : undefined,
       rest_interval_seconds: payload.rest_interval_seconds as string | number | null | undefined,
     }));
   } catch (error) {

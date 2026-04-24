@@ -5,7 +5,11 @@ export function okJson(payload: unknown, init?: ResponseInit) {
 }
 
 export function errorJson(error: unknown, status = 400) {
-  const message = error instanceof Error ? error.message : String(error || "请求失败");
+  const message = error instanceof Error
+    ? error.message
+    : error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message || "请求失败")
+      : String(error || "请求失败");
   return NextResponse.json({ error: message }, { status });
 }
 
