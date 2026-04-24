@@ -3,17 +3,19 @@
 ## Current Slice
 
 - Added a new `frontend/` Next.js App Router application.
-- Migrated the training page first-screen data read into TypeScript.
-- Kept the existing Flask application and tests untouched.
+- Moved the web runtime pages and training APIs into Next.js.
+- Kept plan parsing and Kdocs/Supabase upload as a local script workflow.
 
 ## What Works In This Slice
 
-- `frontend/app/training/page.tsx` reads:
-  - today's workout plan from `workout_plans`
-  - current active training session from `training_sessions`
-  - today's load summary from `training_sessions` and `training_day_metrics`
-- `frontend/app/api/today-plan/route.ts` exposes the plan summary in Next.js.
-- `frontend/app/api/training/snapshot/route.ts` exposes a combined payload for the training page.
+- `frontend/app/page.tsx` renders the daily dashboard.
+- `frontend/app/training/page.tsx` handles training, set logging, finish summary, cancellation, history, and load monitor views.
+- `frontend/app/week/page.tsx` renders the weekly plan.
+- `frontend/app/upload/page.tsx` points to the local sync script.
+- `frontend/app/api/**` covers the runtime JSON API:
+  - plan read: `today-plan`, `plans/[date]`, `week`
+  - training flow: `start-training`, `next-set`, `current-session`, `finish-training`, `cancel-training`
+  - analysis and history: `load-monitor`, `load-monitor/day`, `training-history`, `training-history/[sessionId]`
 
 ## Local Run
 
@@ -36,13 +38,14 @@ Required variables:
 1. Point the Vercel project's Root Directory to `frontend`.
 2. Set Framework Preset to `Next.js`.
 3. Copy the Supabase environment variables into the Vercel project.
-4. Keep the current Flask app available during migration until write APIs move over.
+4. Keep `frontend/vercel.json` committed so the deployment overrides stale project-level Vite output settings.
 
-## Next Slice
+## Plan Sync
 
-- Port the training write flow:
-  - `start-training`
-  - `next-set`
-  - `finish-training`
-  - `cancel-training`
-- Move history and weekly load monitor into Next.js route handlers.
+Plan parsing and upload stay in the local Python script:
+
+```bash
+python3 scripts/upload_workout_plans.py --env-file .env
+```
+
+The Next.js `/api/upload-plan` endpoint returns the local command and does not parse Excel files in the web runtime.

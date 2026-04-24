@@ -1,64 +1,94 @@
 import Link from "next/link";
+import { CalendarDays, Dumbbell, Upload, BarChart3 } from "lucide-react";
 import { hasSupabaseServerEnv } from "@/lib/supabase";
+import { getTrainingPageSnapshot, normalizeDate } from "@/lib/workout";
 
-export default function HomePage() {
-  const hasServerEnv = hasSupabaseServerEnv();
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const date = normalizeDate();
+
+  if (!hasSupabaseServerEnv()) {
+    return (
+      <main className="app-shell">
+        <section className="surface">
+          <span className="kicker">Setup</span>
+          <h1>缺少 Supabase 服务端变量</h1>
+          <p>配置 `SUPABASE_URL` 和 `SUPABASE_SERVICE_ROLE_KEY` 后页面会读取训练计划。</p>
+        </section>
+      </main>
+    );
+  }
+
+  const snapshot = await getTrainingPageSnapshot(date);
 
   return (
-    <main className="shell">
-      <section className="hero">
-        <span className="eyebrow">Workout Web / Next.js</span>
-        <h1>迁移工作台已经就位</h1>
-        <p>
-          这一版先把训练页的数据读取迁进 Next.js App Router，Vercel 后续只需要把
-          Root Directory 指向 <code>frontend</code>，再把 Framework 设成
-          <code>Next.js</code>。
-        </p>
-      </section>
+    <main className="app-shell">
+      <header className="topbar">
+        <div>
+          <div className="kicker">{date}</div>
+          <h1>训练工作台</h1>
+        </div>
+        <div className="status-pill">{snapshot.currentSession ? "训练中" : snapshot.plan.is_rest_day ? "恢复日" : "待开始"}</div>
+      </header>
 
-      <section className="grid two">
-        <article className="panel">
-          <div className="panel-body">
-            <h2>当前交付</h2>
-            <div className="remark-list">
-              <div className="exercise-item">
-                <div className="exercise-name">训练页首屏</div>
-                <div className="exercise-meta">今天计划、当前训练状态、当日负荷已经由 Next.js 读取。</div>
-              </div>
-              <div className="exercise-item">
-                <div className="exercise-name">前端数据层</div>
-                <div className="exercise-meta">
-                  Supabase 查询、计划解析和训练状态计算已经搬进 TypeScript。
-                </div>
-              </div>
-              <div className="exercise-item">
-                <div className="exercise-name">Vercel 切换路径</div>
-                <div className="exercise-meta">
-                  当前仓库继续保留 Flask，切流时只需要让 Vercel 指向
-                  <code>frontend</code>。
-                </div>
-              </div>
+      <section className="work-grid">
+        <article className="surface primary-work">
+          <div className="section-head">
+            <div>
+              <span className="kicker">{snapshot.plan.phase || "Today"}</span>
+              <h2>{snapshot.plan.is_rest_day ? "今天恢复" : "今日计划"}</h2>
             </div>
+            <Link className="primary-button" href={`/training?date=${date}`}>
+              <Dumbbell size={18} />
+              进入训练
+            </Link>
+          </div>
+          <div className="exercise-list compact">
+            {snapshot.plan.exercises.slice(0, 6).map((exercise) => (
+              <div key={`${exercise.exercise_name}-${exercise.details.join("|")}`} className="exercise-item">
+                <div className="exercise-head">
+                  <strong>{exercise.exercise_name}</strong>
+                  <span>{exercise.is_trackable ? "记录" : exercise.category}</span>
+                </div>
+                <div className="exercise-meta">
+                  {exercise.target_sets ? `${exercise.target_sets} 组` : ""}
+                  {exercise.target_reps ? ` · ${exercise.target_reps} 次` : ""}
+                  {exercise.target_weight ? ` · ${exercise.target_weight}` : ""}
+                </div>
+              </div>
+            ))}
+            {snapshot.plan.exercises.length === 0 ? <div className="empty-state">今天没有训练项目。</div> : null}
           </div>
         </article>
 
-        <article className="panel">
-          <div className="panel-body">
-            <h2>下一步入口</h2>
-            <div className="remark-list">
-              <Link href="/training" className="exercise-item">
-                <div className="exercise-name">打开新训练页</div>
-                <div className="exercise-meta">先看当前计划、训练状态和当日负荷。</div>
-              </Link>
-              <div className="exercise-item">
-                <div className="exercise-name">环境状态</div>
-                <div className="exercise-meta">
-                  {hasServerEnv ? "Supabase 服务端变量已经可读。" : "需要补齐 frontend 环境变量后再取数。"}
-                </div>
-              </div>
+        <aside className="surface">
+          <span className="kicker">Load</span>
+          <div className="metric-row">
+            <div>
+              <span>Day Load</span>
+              <strong>{snapshot.loadMonitorDay.day_total_load}</strong>
+            </div>
+            <div>
+              <span>完成训练</span>
+              <strong>{snapshot.loadMonitorDay.sessions.length}</strong>
             </div>
           </div>
-        </article>
+          <div className="action-row">
+            <Link className="ghost-button" href="/week">
+              <CalendarDays size={17} />
+              周视图
+            </Link>
+            <Link className="ghost-button" href={`/training?date=${date}`}>
+              <BarChart3 size={17} />
+              负荷
+            </Link>
+            <Link className="ghost-button" href="/upload">
+              <Upload size={17} />
+              同步
+            </Link>
+          </div>
+        </aside>
       </section>
     </main>
   );
