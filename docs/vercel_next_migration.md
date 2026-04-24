@@ -40,6 +40,16 @@ Required variables:
 3. Copy the Supabase environment variables into the Vercel project.
 4. Keep `frontend/vercel.json` committed so the deployment overrides stale project-level Vite output settings.
 
+## Deployment Flow
+
+Production deployment is handled by Vercel Git Integration. Commit locally, then run:
+
+```bash
+git push origin main
+```
+
+The push to `main` triggers Vercel automatically. Manual `vercel deploy` is only for exceptional ad hoc checks.
+
 ## Plan Sync
 
 Plan parsing and upload stay in the local Python script:

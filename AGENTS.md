@@ -19,6 +19,7 @@
 - Frontend dev: `cd frontend && pnpm dev`
 - Frontend build: `cd frontend && pnpm build`
 - Frontend typecheck: `cd frontend && pnpm typecheck`
+- Production deploy: `git push origin main` triggers Vercel Git Integration automatically; prefer this over manual Vercel deploy.
 - Legacy Flask dev: `python app.py`
 - Sync workout plans from Kdocs: `python3 scripts/upload_workout_plans.py --env-file .env`
 - Docker: `docker build -t workout:local . && docker run --env-file .env -p 8088:8088 workout:local`
