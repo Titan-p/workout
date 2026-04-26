@@ -480,6 +480,58 @@ function actualMetricUnit(
   return targetMetricFor(exerciseName, value).unit;
 }
 
+function isTrainingSetDuplicateError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const payload = error as { code?: unknown; message?: unknown; details?: unknown };
+  return (
+    payload.code === "23505" ||
+    String(payload.message || "").includes("training_sets_unique_set") ||
+    String(payload.details || "").includes("training_sets_unique_set")
+  );
+}
+
+function nextSetRestPayload(
+  updated: {
+    session: TrainingSessionRecord;
+    plan: PlanSummary;
+    logs: TrainingSetRecord[];
+    payload: SessionPayload;
+  },
+  lastLogs: TrainingSetRecord[],
+) {
+  const next = determineNextStep(updated.plan, updated.logs);
+  if (!next) {
+    return {
+      ...updated.payload,
+      last_logs: lastLogs,
+    };
+  }
+
+  const restSeconds = next.target_rest_seconds ?? updated.session.rest_interval_seconds ?? 90;
+  return {
+    status: "rest",
+    current_exercise: next.exercise,
+    current_set: next.next_set,
+    target_sets: next.target_sets,
+    target_reps: next.target_reps,
+    target_metric: next.target_metric,
+    target_weight: next.target_weight,
+    target_rest_seconds: next.target_rest_seconds,
+    details: next.details,
+    is_combination: next.is_combination,
+    components: next.components,
+    component_targets: next.component_targets,
+    primary_component: next.primary_component,
+    rest_seconds: restSeconds,
+    rest_end_time: restFinishesAt(restSeconds),
+    session: updated.payload.session,
+    plan: updated.plan,
+    last_logs: lastLogs,
+  };
+}
+
 function buildComponentTargets(
   components: string[],
   repsText: string | null,
@@ -1363,6 +1415,13 @@ export async function recordNextSet(input: {
     .select("*");
 
   if (error) {
+    if (isTrainingSetDuplicateError(error)) {
+      const updated = await getSessionPayloadById(sessionId);
+      if (!updated) {
+        throw new Error("Session not found after duplicate set");
+      }
+      return nextSetRestPayload(updated, []);
+    }
     throw error;
   }
 
@@ -1372,35 +1431,7 @@ export async function recordNextSet(input: {
     throw new Error("Session not found after update");
   }
 
-  const next = determineNextStep(updated.plan, updated.logs);
-  if (!next) {
-    return {
-      ...updated.payload,
-      last_logs: lastLogs,
-    };
-  }
-
-  const restSeconds = next.target_rest_seconds ?? updated.session.rest_interval_seconds ?? 90;
-  return {
-    status: "rest",
-    current_exercise: next.exercise,
-    current_set: next.next_set,
-    target_sets: next.target_sets,
-    target_reps: next.target_reps,
-    target_metric: next.target_metric,
-    target_weight: next.target_weight,
-    target_rest_seconds: next.target_rest_seconds,
-    details: next.details,
-    is_combination: next.is_combination,
-    components: next.components,
-    component_targets: next.component_targets,
-    primary_component: next.primary_component,
-    rest_seconds: restSeconds,
-    rest_end_time: restFinishesAt(restSeconds),
-    session: updated.payload.session,
-    plan: updated.plan,
-    last_logs: lastLogs,
-  };
+  return nextSetRestPayload(updated, lastLogs);
 }
 
 async function upsertDayMetric(input: {

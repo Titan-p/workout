@@ -2,8 +2,9 @@
 
 ## Current Slice
 
-- Added a new `frontend/` Next.js App Router application.
-- Moved the web runtime pages and training APIs into Next.js.
+- `frontend/` is the only web runtime.
+- Moved the runtime pages and training APIs into Next.js.
+- Removed the legacy Python web runtime; Python remains only for local Kdocs sync helpers and tests.
 - Kept plan parsing and Kdocs/Supabase upload as a local script workflow.
 
 ## What Works In This Slice

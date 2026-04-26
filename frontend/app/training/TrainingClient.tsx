@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { FormEvent, useEffect, useState, useTransition } from "react";
+import { FormEvent, useEffect, useRef, useState, useTransition } from "react";
 import type {
   LoadMonitorDayPayload,
   LoadMonitorWeekPayload,
@@ -283,6 +283,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   const [componentForms, setComponentForms] = useState<ComponentSetForm[]>(() =>
     buildComponentSetForms(initialSnapshot.currentSession),
   );
+  const actionLockRef = useRef(false);
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -330,6 +331,10 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   }
 
   async function runAction(action: string, task: () => Promise<void>) {
+    if (actionLockRef.current) {
+      return;
+    }
+    actionLockRef.current = true;
     setBusyAction(action);
     setFeedback({ tone: "info", text: "处理中..." });
     try {
@@ -337,6 +342,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     } catch (error) {
       setFeedback({ tone: "error", text: error instanceof Error ? error.message : "请求失败" });
     } finally {
+      actionLockRef.current = false;
       setBusyAction(null);
     }
   }
@@ -564,6 +570,24 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
                   </div>
                 </div>
 
+                <div className="action-row top-action-row">
+                  {session.status === "ready_to_finish" ? (
+                    <button type="button" className="primary-button" onClick={openFinishModal} disabled={isBusy}>
+                      <Flag size={18} />
+                      结束训练
+                    </button>
+                  ) : (
+                    <button type="button" className="primary-button" onClick={completeSet} disabled={isBusy}>
+                      {busyAction === "set" ? <Loader2 className="spin" size={18} /> : <Check size={18} />}
+                      {session.is_combination ? "完成本轮" : "完成这组"}
+                    </button>
+                  )}
+                  <button type="button" className="ghost-button" onClick={refreshSnapshot} disabled={isBusy}>
+                    <RefreshCw size={17} />
+                    刷新
+                  </button>
+                </div>
+
                 {session.details.length ? <div className="detail-line">{session.details.join(" · ")}</div> : null}
 
                 {session.status === "ready_to_finish" ? (
@@ -649,23 +673,6 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
                   </div>
                 )}
 
-                <div className="action-row">
-                  {session.status === "ready_to_finish" ? (
-                    <button type="button" className="primary-button" onClick={openFinishModal} disabled={isBusy}>
-                      <Flag size={18} />
-                      结束训练
-                    </button>
-                  ) : (
-                    <button type="button" className="primary-button" onClick={completeSet} disabled={isBusy}>
-                      {busyAction === "set" ? <Loader2 className="spin" size={18} /> : <Check size={18} />}
-                      {session.is_combination ? "完成本轮" : "完成这组"}
-                    </button>
-                  )}
-                  <button type="button" className="ghost-button" onClick={refreshSnapshot} disabled={isBusy}>
-                    <RefreshCw size={17} />
-                    刷新
-                  </button>
-                </div>
               </>
             ) : (
               <div className="start-panel">

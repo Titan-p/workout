@@ -576,6 +576,23 @@ button:disabled {
   margin-top: 16px;
 }
 
+.top-action-row {
+  margin-top: 12px;
+  margin-bottom: 14px;
+  padding: 10px;
+  border: 1px solid rgba(245, 240, 221, 0.12);
+  border-radius: 24px;
+  background: rgba(4, 12, 10, 0.52);
+}
+
+.top-action-row .primary-button {
+  flex: 1 1 180px;
+}
+
+.top-action-row .ghost-button {
+  flex: 0 0 auto;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -1205,7 +1222,9 @@ textarea {
 
   .section-head .primary-button,
   .section-head .ghost-button,
-  .start-panel .primary-button {
+  .start-panel .primary-button,
+  .top-action-row .primary-button,
+  .top-action-row .ghost-button {
     width: 100%;
   }
 
