@@ -42,6 +42,7 @@
 
 ## Security & Configuration Tips
 - Required env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- Login env: `WORKOUT_AUTH_PASSWORD`, `WORKOUT_AUTH_SECRET`.
 - Local Kdocs sync expects `KDOCS_WORKOUT_FILE_ID`; `KDOCS_CLI_BIN` is optional when `kdocs-cli` is already on PATH.
 - Supabase table `workout_plans`: `date` (YYYY-MM-DD), JSON `headers`, `remarks`, `plan_data`.
 - Training features expect Supabase tables `training_sessions`, `training_sets`, and `training_day_metrics`; see `docs/training_schema.sql` for DDL.

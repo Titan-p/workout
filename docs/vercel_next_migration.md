@@ -13,7 +13,9 @@
 - `frontend/app/training/page.tsx` handles training, set logging, finish summary, cancellation, history, and load monitor views.
 - `frontend/app/week/page.tsx` renders the weekly plan.
 - `frontend/app/upload/page.tsx` points to the local sync script.
+- `frontend/middleware.ts` protects pages and runtime APIs with a signed login cookie.
 - `frontend/app/api/**` covers the runtime JSON API:
+  - auth: `auth/login`, `auth/logout`
   - plan read: `today-plan`, `plans/[date]`, `week`
   - training flow: `start-training`, `next-set`, `current-session`, `finish-training`, `cancel-training`
   - analysis and history: `load-monitor`, `load-monitor/day`, `training-history`, `training-history/[sessionId]`
@@ -33,12 +35,14 @@ Required variables:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `WORKOUT_AUTH_PASSWORD`
+- `WORKOUT_AUTH_SECRET`
 
 ## Vercel Cutover
 
 1. Point the Vercel project's Root Directory to `frontend`.
 2. Set Framework Preset to `Next.js`.
-3. Copy the Supabase environment variables into the Vercel project.
+3. Copy the Supabase and login environment variables into the Vercel project.
 4. Keep `frontend/vercel.json` committed so the deployment overrides stale project-level Vite output settings.
 
 ## Deployment Flow
