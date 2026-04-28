@@ -8,6 +8,8 @@ export async function POST(request: Request) {
   try {
     return okJson(await recordNextSet({
       session_id: String(payload.session_id || ""),
+      exercise_name: payload.exercise_name as string | null | undefined,
+      set_number: payload.set_number as string | number | null | undefined,
       actual_reps: payload.actual_reps as string | number | null | undefined,
       actual_weight: payload.actual_weight as string | null | undefined,
       rpe: payload.rpe as string | number | null | undefined,

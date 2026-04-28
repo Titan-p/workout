@@ -36,6 +36,11 @@ type NextSetResponse = Omit<SessionPayload, "status"> & {
   rest_end_time?: string;
   last_logs?: unknown;
 };
+type SkipMode = "set" | "exercise";
+type StepCursor = {
+  exercise_name: string;
+  set_number: number;
+};
 
 type ComponentSetForm = {
   component_name: string;
@@ -251,6 +256,126 @@ function buildSingleSetForm(session: SetFormSource | null): SetForm {
   };
 }
 
+function stepKey(step: StepCursor): string {
+  return `${step.exercise_name}::${step.set_number}`;
+}
+
+function buildPlanSteps(plan: PlanSummary): StepCursor[] {
+  return plan.exercises
+    .filter((exercise) => exercise.is_trackable)
+    .flatMap((exercise) =>
+      Array.from({ length: exercise.target_sets ?? 1 }, (_, index) => ({
+        exercise_name: exercise.exercise_name,
+        set_number: index + 1,
+      })),
+    );
+}
+
+function logStepKey(log: SessionPayload["session"]["logs"][number]): string {
+  return stepKey({
+    exercise_name: log.group_name || log.exercise,
+    set_number: Number(log.round_number || log.set_number || 0),
+  });
+}
+
+function recordedStepKeys(session: SessionPayload): Set<string> {
+  return new Set(session.session.logs.map(logStepKey));
+}
+
+function currentStepFromSession(session: SessionPayload | null): StepCursor | null {
+  if (!session?.current_exercise || !session.current_set) {
+    return null;
+  }
+  return {
+    exercise_name: session.current_exercise,
+    set_number: session.current_set,
+  };
+}
+
+function findNextOpenStep(
+  plan: PlanSummary,
+  session: SessionPayload,
+  skippedKeys: Set<string>,
+  afterStep: StepCursor | null,
+): StepCursor | null {
+  const steps = buildPlanSteps(plan);
+  const recorded = recordedStepKeys(session);
+  const afterIndex = afterStep ? steps.findIndex((step) => stepKey(step) === stepKey(afterStep)) : -1;
+
+  for (let index = Math.max(afterIndex + 1, 0); index < steps.length; index += 1) {
+    const key = stepKey(steps[index]);
+    if (!recorded.has(key) && !skippedKeys.has(key)) {
+      return steps[index];
+    }
+  }
+  return null;
+}
+
+function findFirstOpenExerciseStep(
+  plan: PlanSummary,
+  session: SessionPayload,
+  exerciseName: string,
+): StepCursor | null {
+  const recorded = recordedStepKeys(session);
+  return buildPlanSteps(plan).find((step) => (
+    step.exercise_name === exerciseName && !recorded.has(stepKey(step))
+  )) || null;
+}
+
+function skippedExerciseStepKeys(plan: PlanSummary, session: SessionPayload, currentStep: StepCursor): string[] {
+  const recorded = recordedStepKeys(session);
+  return buildPlanSteps(plan)
+    .filter((step) => (
+      step.exercise_name === currentStep.exercise_name &&
+      step.set_number >= currentStep.set_number &&
+      !recorded.has(stepKey(step))
+    ))
+    .map(stepKey);
+}
+
+function applyStepToSession(session: SessionPayload, step: StepCursor | null): SessionPayload {
+  if (!step) {
+    return {
+      ...session,
+      status: "ready_to_finish",
+      current_exercise: null,
+      current_set: null,
+      target_sets: null,
+      target_reps: null,
+      target_metric: null,
+      target_weight: null,
+      target_rest_seconds: null,
+      details: [],
+      is_combination: false,
+      components: [],
+      component_targets: [],
+      primary_component: null,
+    };
+  }
+
+  const exercise = session.plan.exercises.find((item) => item.exercise_name === step.exercise_name);
+  if (!exercise) {
+    return session;
+  }
+
+  return {
+    ...session,
+    status: "active",
+    current_exercise: exercise.exercise_name,
+    current_set: step.set_number,
+    target_sets: exercise.target_sets,
+    target_reps: exercise.target_reps,
+    target_metric: exercise.target_metric,
+    target_weight: exercise.target_weight,
+    target_rest_seconds: exercise.target_rest_seconds,
+    details: exercise.details,
+    is_combination: exercise.is_combination,
+    components: exercise.components,
+    component_targets: exercise.component_targets,
+    primary_component: exercise.primary_component,
+  };
+}
+
 export default function TrainingClient({ initialSnapshot }: { initialSnapshot: TrainingPageSnapshot }) {
   const [activeTab, setActiveTab] = useState<TabKey>("training");
   const [plan, setPlan] = useState<PlanSummary>(initialSnapshot.plan);
@@ -259,6 +384,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   const [loadWeek, setLoadWeek] = useState<LoadMonitorWeekPayload | null>(null);
   const [history, setHistory] = useState<TrainingHistorySession[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [skippedStepKeys, setSkippedStepKeys] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [restEndTime, setRestEndTime] = useState<string | null>(null);
@@ -312,7 +438,18 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   async function refreshSnapshot() {
     const snapshot = await apiJson<TrainingPageSnapshot>(`/api/training/snapshot?date=${initialSnapshot.date}`);
     setPlan(snapshot.plan);
-    setSession(snapshot.currentSession);
+    setSession((current) => {
+      if (!snapshot.currentSession) {
+        return null;
+      }
+      const skipped = new Set(skippedStepKeys);
+      const preferredStep = currentStepFromSession(current);
+      const recorded = recordedStepKeys(snapshot.currentSession);
+      const nextStep = preferredStep && !recorded.has(stepKey(preferredStep)) && !skipped.has(stepKey(preferredStep))
+        ? preferredStep
+        : findNextOpenStep(snapshot.plan, snapshot.currentSession, skipped, null);
+      return applyStepToSession(snapshot.currentSession, nextStep);
+    });
     setLoadDay(snapshot.loadMonitorDay);
   }
 
@@ -373,6 +510,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
         body: JSON.stringify({ date: initialSnapshot.date }),
       });
       setPlan(payload.plan);
+      setSkippedStepKeys([]);
       setSession(payload);
       setRestEndTime(null);
       setFeedback({ tone: "success", text: "训练已开始。" });
@@ -386,11 +524,14 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     }
 
     await runAction("set", async () => {
+      const currentStep = currentStepFromSession(session);
       const payload = await apiJson<NextSetResponse>("/api/next-set", {
         method: "POST",
         body: JSON.stringify(session.is_combination
           ? {
               session_id: session.session.session_id,
+              exercise_name: session.current_exercise,
+              set_number: session.current_set,
               component_logs: componentForms.map((component) => ({
                 component_name: component.component_name,
                 actual_reps: component.actual_reps || null,
@@ -401,6 +542,8 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
             }
           : {
               session_id: session.session.session_id,
+              exercise_name: session.current_exercise,
+              set_number: session.current_set,
               actual_reps: setForm.actual_reps || null,
               actual_weight: setForm.actual_weight || null,
               rpe: setForm.rpe || null,
@@ -408,10 +551,16 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
             }),
       });
       setSetForm({ actual_reps: "", actual_weight: "", rpe: "", notes: "" });
-      setSession((payload.status === "rest" ? {
+      const nextSkippedKeys = currentStep
+        ? skippedStepKeys.filter((key) => key !== stepKey(currentStep))
+        : skippedStepKeys;
+      const basePayload = (payload.status === "rest" ? {
         ...payload,
         status: "active",
-      } : payload) as SessionPayload);
+      } : payload) as SessionPayload;
+      const nextStep = findNextOpenStep(basePayload.plan, basePayload, new Set(nextSkippedKeys), currentStep);
+      setSkippedStepKeys(nextSkippedKeys);
+      setSession(applyStepToSession(basePayload, nextStep));
       setRestEndTime(payload.rest_end_time || null);
       setFeedback({
         tone: "success",
@@ -422,6 +571,59 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
       if (historyLoaded) {
         await refreshHistory(true);
       }
+    });
+  }
+
+  async function skipStep(mode: SkipMode) {
+    if (!session?.session.session_id) {
+      setFeedback({ tone: "error", text: "先开始训练。" });
+      return;
+    }
+
+    await runAction(`skip-${mode}`, async () => {
+      const currentStep = currentStepFromSession(session);
+      if (!currentStep) {
+        setFeedback({ tone: "error", text: "当前没有可跳过的组。" });
+        return;
+      }
+      const nextSkipped = new Set(skippedStepKeys);
+      if (mode === "exercise") {
+        skippedExerciseStepKeys(session.plan, session, currentStep).forEach((key) => nextSkipped.add(key));
+      } else {
+        nextSkipped.add(stepKey(currentStep));
+      }
+      const nextStep = findNextOpenStep(session.plan, session, nextSkipped, currentStep);
+      setSkippedStepKeys(Array.from(nextSkipped));
+      setSession(applyStepToSession(session, nextStep));
+      setRestEndTime(null);
+      setFeedback({
+        tone: "success",
+        text: mode === "exercise"
+          ? "当前动作已跳过，可在计划页跳回补记。"
+          : session.is_combination ? "这一轮已跳过，可在计划页跳回补记。" : "这一组已跳过，可在计划页跳回补记。",
+      });
+      if (historyLoaded) {
+        await refreshHistory(true);
+      }
+    });
+  }
+
+  async function jumpToExercise(exerciseName: string) {
+    if (!session?.session.session_id) {
+      setFeedback({ tone: "error", text: "先开始训练。" });
+      return;
+    }
+
+    await runAction(`jump-${exerciseName}`, async () => {
+      const nextStep = findFirstOpenExerciseStep(session.plan, session, exerciseName);
+      if (!nextStep) {
+        setFeedback({ tone: "error", text: "这个动作已经记录完成。" });
+        return;
+      }
+      setSession(applyStepToSession(session, nextStep));
+      setRestEndTime(null);
+      setActiveTab("training");
+      setFeedback({ tone: "success", text: "已切换到指定动作，可以补记。" });
     });
   }
 
@@ -460,6 +662,7 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
         body: JSON.stringify({ session_id: session.session.session_id }),
       });
       setSession(null);
+      setSkippedStepKeys([]);
       setRestEndTime(null);
       await refreshSnapshot();
       await refreshHistory(true);
@@ -586,6 +789,18 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
                     <RefreshCw size={17} />
                     刷新
                   </button>
+                  {session.status === "ready_to_finish" ? null : (
+                    <>
+                      <button type="button" className="ghost-button" onClick={() => skipStep("set")} disabled={isBusy}>
+                        {busyAction === "skip-set" ? <Loader2 className="spin" size={17} /> : null}
+                        {session.is_combination ? "跳过本轮" : "跳过这组"}
+                      </button>
+                      <button type="button" className="ghost-button danger" onClick={() => skipStep("exercise")} disabled={isBusy}>
+                        {busyAction === "skip-exercise" ? <Loader2 className="spin" size={17} /> : null}
+                        跳过动作
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {session.details.length ? <div className="detail-line">{session.details.join(" · ")}</div> : null}
@@ -722,7 +937,12 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
               <h2>今日计划</h2>
             </div>
           </div>
-          <ExerciseList plan={plan} />
+          <ExerciseList
+            plan={plan}
+            activeSession={session}
+            busyAction={busyAction}
+            onJumpToExercise={jumpToExercise}
+          />
         </section>
       ) : null}
 
@@ -923,7 +1143,17 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   );
 }
 
-function ExerciseList({ plan }: { plan: PlanSummary }) {
+function ExerciseList({
+  plan,
+  activeSession,
+  busyAction,
+  onJumpToExercise,
+}: {
+  plan: PlanSummary;
+  activeSession: SessionPayload | null;
+  busyAction: string | null;
+  onJumpToExercise: (exerciseName: string) => void;
+}) {
   if (!plan.exercises.length) {
     return <div className="empty-state">今天没有训练项目。</div>;
   }
@@ -943,6 +1173,19 @@ function ExerciseList({ plan }: { plan: PlanSummary }) {
             {exercise.target_rest_seconds ? ` · 休息 ${formatRestSeconds(exercise.target_rest_seconds)}` : ""}
           </div>
           {exercise.details.length ? <small>{exercise.details.join(" · ")}</small> : null}
+          {activeSession && exercise.is_trackable ? (
+            <div className="exercise-actions">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => onJumpToExercise(exercise.exercise_name)}
+                disabled={Boolean(busyAction)}
+              >
+                {busyAction === `jump-${exercise.exercise_name}` ? <Loader2 className="spin" size={17} /> : <Dumbbell size={17} />}
+                跳到这里
+              </button>
+            </div>
+          ) : null}
         </div>
       ))}
     </div>

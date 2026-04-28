@@ -532,6 +532,99 @@ function nextSetRestPayload(
   };
 }
 
+function isSameNextStep(
+  left: ReturnType<typeof determineNextStep>,
+  right: ReturnType<typeof determineNextStep>,
+): boolean {
+  return Boolean(
+    left &&
+    right &&
+    left.exercise === right.exercise &&
+    left.next_set === right.next_set,
+  );
+}
+
+type NextTrainingStep = NonNullable<ReturnType<typeof determineNextStep>>;
+
+function buildTrainingSetRowsForStep(
+  sessionId: string,
+  nextStep: NextTrainingStep,
+  setNumber: number,
+  completedAt: string,
+  values: {
+    restSeconds: number;
+    note: string;
+    componentInputs?: Array<{
+      component_name?: string | null;
+      actual_reps?: number | string | null;
+      actual_weight?: string | null;
+      rpe?: number | string | null;
+      notes?: string | null;
+    }>;
+  },
+) {
+  const componentInputs = Array.isArray(values.componentInputs) ? values.componentInputs : [];
+
+  if (nextStep.is_combination) {
+    const targets = nextStep.component_targets.length
+      ? nextStep.component_targets
+      : nextStep.components.map((componentName) => ({
+          component_name: componentName,
+          target_reps: null,
+          target_weight: null,
+          target_metric: targetMetricFor(componentName, null),
+        }));
+
+    return targets.map((target, index) => {
+      const provided = componentInputs[index] || componentInputs.find((item) => item.component_name === target.component_name) || {};
+      const componentRpe = parseOptionalFloat(provided.rpe);
+      if (provided.rpe !== null && provided.rpe !== undefined && provided.rpe !== "" && componentRpe === null) {
+        throw new Error(`${target.component_name} RPE 需要使用数字`);
+      }
+      if (componentRpe !== null && (componentRpe < 1 || componentRpe > 10)) {
+        throw new Error(`${target.component_name} RPE 范围为 1 到 10`);
+      }
+      const actualMetric = actualMetricPayload(provided.actual_reps, target.target_metric);
+
+      return {
+        id: crypto.randomUUID(),
+        session_id: sessionId,
+        exercise: target.component_name,
+        set_number: setNumber,
+        group_name: nextStep.exercise,
+        group_type: "superset",
+        round_number: setNumber,
+        component_index: index + 1,
+        component_name: target.component_name,
+        ...actualMetric,
+        actual_weight: cleanText(provided.actual_weight),
+        notes: cleanText(provided.notes) ?? values.note,
+        rest_seconds: values.restSeconds,
+        rpe: componentRpe,
+        completed_at: completedAt,
+      };
+    });
+  }
+
+  return [{
+    id: crypto.randomUUID(),
+    session_id: sessionId,
+    exercise: nextStep.exercise,
+    set_number: setNumber,
+    group_name: null,
+    group_type: "single",
+    round_number: setNumber,
+    component_index: 1,
+    component_name: nextStep.exercise,
+    ...actualMetricPayload(values.componentInputs?.[0]?.actual_reps, nextStep.target_metric),
+    actual_weight: cleanText(values.componentInputs?.[0]?.actual_weight),
+    notes: cleanText(values.componentInputs?.[0]?.notes) ?? values.note,
+    rest_seconds: values.restSeconds,
+    rpe: parseOptionalFloat(values.componentInputs?.[0]?.rpe),
+    completed_at: completedAt,
+  }];
+}
+
 function buildComponentTargets(
   components: string[],
   repsText: string | null,
@@ -766,6 +859,35 @@ function determineNextStep(planSummary: PlanSummary, logs: TrainingSetRecord[]) 
   }
 
   return null;
+}
+
+function stepFromExercise(entry: ExerciseSummary, setNumber: number): NextTrainingStep {
+  return {
+    exercise: entry.exercise_name,
+    next_set: setNumber,
+    target_sets: entry.target_sets,
+    target_reps: entry.target_reps,
+    target_metric: entry.target_metric,
+    target_weight: entry.target_weight,
+    target_rest_seconds: entry.target_rest_seconds,
+    details: entry.details,
+    is_combination: entry.is_combination,
+    components: entry.components,
+    component_targets: entry.component_targets,
+    primary_component: entry.primary_component,
+  };
+}
+
+function logsForStep(logs: TrainingSetRecord[], step: NextTrainingStep): TrainingSetRecord[] {
+  return logs.filter((log) => {
+    const key = log.group_name || log.exercise;
+    const round = Number(log.round_number || log.set_number || 0);
+    return key === step.exercise && round === step.next_set;
+  });
+}
+
+function isRecordableStep(logs: TrainingSetRecord[], step: NextTrainingStep): boolean {
+  return logsForStep(logs, step).length === 0;
 }
 
 function buildSessionRecordPayload(
@@ -1307,6 +1429,8 @@ async function nextSetNumber(sessionId: string, exercise: string): Promise<numbe
 
 export async function recordNextSet(input: {
   session_id: string;
+  exercise_name?: string | null;
+  set_number?: number | string | null;
   actual_reps?: number | string | null;
   actual_weight?: string | null;
   rpe?: number | string | null;
@@ -1338,7 +1462,27 @@ export async function recordNextSet(input: {
     throw new Error("Session not found");
   }
 
-  const nextStep = determineNextStep(sessionState.plan, sessionState.logs);
+  const requestedExerciseName = cleanText(input.exercise_name);
+  const requestedSetNumber = parseOptionalInt(input.set_number);
+  let nextStep = determineNextStep(sessionState.plan, sessionState.logs);
+  if (requestedExerciseName || requestedSetNumber !== null) {
+    if (!requestedExerciseName || requestedSetNumber === null) {
+      throw new Error("指定补记动作时需要同时传动作和组数");
+    }
+
+    const entry = sessionState.plan.exercises.find((item) => item.is_trackable && item.exercise_name === requestedExerciseName);
+    if (!entry) {
+      throw new Error("动作不在今天的可记录计划里");
+    }
+    const effectiveGoal = entry.target_sets ?? 1;
+    if (requestedSetNumber < 1 || requestedSetNumber > effectiveGoal) {
+      throw new Error("目标组数不在计划范围内");
+    }
+    nextStep = stepFromExercise(entry, requestedSetNumber);
+    if (!isRecordableStep(sessionState.logs, nextStep)) {
+      throw new Error("这一组已经有记录");
+    }
+  }
   if (!nextStep) {
     return sessionState.payload;
   }
@@ -1350,64 +1494,20 @@ export async function recordNextSet(input: {
     sessionState.session.rest_interval_seconds ??
     90;
   const setNumber = nextStep.next_set;
-  const componentInputs = Array.isArray(input.component_logs) ? input.component_logs : [];
   const client = createSupabaseAdminClient();
   const completedAt = nowIso();
-  const insertRows = nextStep.is_combination
-    ? (nextStep.component_targets.length
-        ? nextStep.component_targets
-        : nextStep.components.map((componentName) => ({
-            component_name: componentName,
-            target_reps: null,
-            target_weight: null,
-            target_metric: targetMetricFor(componentName, null),
-          })))
-        .map((target, index) => {
-          const provided = componentInputs[index] || componentInputs.find((item) => item.component_name === target.component_name) || {};
-          const componentRpe = parseOptionalFloat(provided.rpe);
-          if (provided.rpe !== null && provided.rpe !== undefined && provided.rpe !== "" && componentRpe === null) {
-            throw new Error(`${target.component_name} RPE 需要使用数字`);
-          }
-          if (componentRpe !== null && (componentRpe < 1 || componentRpe > 10)) {
-            throw new Error(`${target.component_name} RPE 范围为 1 到 10`);
-          }
-          const actualMetric = actualMetricPayload(provided.actual_reps, target.target_metric);
-
-          return {
-            id: crypto.randomUUID(),
-            session_id: sessionId,
-            exercise: target.component_name,
-            set_number: setNumber,
-            group_name: nextStep.exercise,
-            group_type: "superset",
-            round_number: setNumber,
-            component_index: index + 1,
-            component_name: target.component_name,
-            ...actualMetric,
-            actual_weight: cleanText(provided.actual_weight),
-            notes: cleanText(provided.notes),
-            rest_seconds: effectiveRest,
-            rpe: componentRpe,
-            completed_at: completedAt,
-          };
-        })
-    : [{
-        id: crypto.randomUUID(),
-        session_id: sessionId,
-        exercise: nextStep.exercise,
-        set_number: setNumber,
-        group_name: null,
-        group_type: "single",
-        round_number: setNumber,
-        component_index: 1,
-        component_name: nextStep.exercise,
-        ...actualMetricPayload(input.actual_reps, nextStep.target_metric),
-        actual_weight: cleanText(input.actual_weight),
-        notes: cleanText(input.notes),
-        rest_seconds: effectiveRest,
-        rpe,
-        completed_at: completedAt,
-      }];
+  const insertRows = buildTrainingSetRowsForStep(sessionId, nextStep, setNumber, completedAt, {
+    restSeconds: effectiveRest,
+    note: "",
+    componentInputs: nextStep.is_combination
+      ? input.component_logs
+      : [{
+          actual_reps: input.actual_reps,
+          actual_weight: input.actual_weight,
+          rpe: input.rpe,
+          notes: input.notes,
+      }],
+  });
 
   const { data, error } = await client
     .from("training_sets")
@@ -1419,6 +1519,9 @@ export async function recordNextSet(input: {
       const updated = await getSessionPayloadById(sessionId);
       if (!updated) {
         throw new Error("Session not found after duplicate set");
+      }
+      if (isSameNextStep(nextStep, determineNextStep(updated.plan, updated.logs))) {
+        throw new Error("记录冲突：请更新 training_sets 唯一索引后重试");
       }
       return nextSetRestPayload(updated, []);
     }

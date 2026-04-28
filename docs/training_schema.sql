@@ -115,8 +115,13 @@ create index if not exists training_sets_session_id_idx
 create index if not exists training_sets_group_round_idx
     on public.training_sets (session_id, group_name, round_number, component_index);
 
+alter table if exists public.training_sets
+    drop constraint if exists training_sets_unique_set;
+
+drop index if exists public.training_sets_unique_set;
+
 create unique index if not exists training_sets_unique_set
-    on public.training_sets (session_id, exercise, set_number);
+    on public.training_sets (session_id, coalesce(group_name, exercise), set_number, component_index);
 
 -- ---------------------------------------------------------------------------
 -- updated_at trigger

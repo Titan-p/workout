@@ -841,6 +841,13 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.exercise-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .set-form,
 .finish-grid {
   display: grid;
