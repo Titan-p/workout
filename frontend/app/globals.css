@@ -484,6 +484,17 @@ textarea:focus-visible {
   padding: 0 14px;
 }
 
+.notification-button {
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.notification-button.enabled {
+  border-color: rgba(149, 249, 133, 0.34);
+  background: rgba(149, 249, 133, 0.12);
+  color: var(--success);
+}
+
 .ghost-button.danger,
 .icon-button.danger {
   border-color: rgba(255, 107, 95, 0.28);
@@ -1287,6 +1298,10 @@ textarea {
   .topbar-actions {
     justify-content: flex-start;
     width: 100%;
+  }
+
+  .notification-button {
+    flex: 1 1 138px;
   }
 
   .tabs {

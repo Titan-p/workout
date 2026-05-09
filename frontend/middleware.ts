@@ -2,7 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, sanitizeNextPath, verifyAuthSession } from "@/lib/auth";
 
 function isAssetPath(pathname: string): boolean {
-  return pathname.startsWith("/_next/") || pathname === "/favicon.ico" || pathname === "/robots.txt";
+  return (
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sw.js" ||
+    pathname === "/workout-icon.svg"
+  );
 }
 
 function isAuthApi(pathname: string): boolean {

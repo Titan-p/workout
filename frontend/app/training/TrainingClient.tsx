@@ -3,6 +3,8 @@
 import {
   Activity,
   BarChart3,
+  Bell,
+  BellRing,
   CalendarDays,
   Check,
   Clock,
@@ -79,6 +81,15 @@ type FinishForm = {
   notes: string;
 };
 
+type RestNotificationPermission = NotificationPermission | "unsupported";
+type WorkoutNotificationOptions = NotificationOptions & {
+  badge?: string;
+  renotify?: boolean;
+};
+
+const WORKOUT_NOTIFICATION_ICON = "/workout-icon.svg";
+const WORKOUT_NOTIFICATION_URL = "/training";
+
 async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -92,6 +103,103 @@ async function apiJson<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error(payload?.error || "请求失败");
   }
   return payload as T;
+}
+
+function getNotificationPermission(): RestNotificationPermission {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  return Notification.permission;
+}
+
+async function registerWorkoutServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    return await navigator.serviceWorker.ready.then(() => registration);
+  } catch {
+    return null;
+  }
+}
+
+function notificationButtonLabel(permission: RestNotificationPermission): string {
+  if (permission === "granted") {
+    return "提醒已开";
+  }
+  if (permission === "denied") {
+    return "权限关闭";
+  }
+  if (permission === "unsupported") {
+    return "提醒受限";
+  }
+  return "开启提醒";
+}
+
+function notificationButtonTitle(permission: RestNotificationPermission): string {
+  if (permission === "granted") {
+    return "休息结束会发送系统通知";
+  }
+  if (permission === "denied") {
+    return "到浏览器或系统设置里允许通知";
+  }
+  if (permission === "unsupported") {
+    return "当前浏览器缺少系统通知能力";
+  }
+  return "开启休息结束系统通知";
+}
+
+function restCompleteBody(session: SessionPayload | null): string {
+  if (!session) {
+    return "回到训练页继续。";
+  }
+
+  if (session.status === "ready_to_finish") {
+    return "计划组数已完成，可以记录总结。";
+  }
+
+  const stepLabel = session.current_set
+    ? `第 ${session.current_set} ${session.is_combination ? "轮" : "组"}`
+    : "下一步";
+  return `${stepLabel}：${session.current_exercise || "继续训练"}`;
+}
+
+function vibrateRestComplete(): void {
+  if ("vibrate" in navigator) {
+    navigator.vibrate([180, 70, 180]);
+  }
+}
+
+async function showRestCompleteNotification(session: SessionPayload | null): Promise<void> {
+  if (getNotificationPermission() !== "granted") {
+    return;
+  }
+
+  const options: WorkoutNotificationOptions = {
+    body: restCompleteBody(session),
+    badge: WORKOUT_NOTIFICATION_ICON,
+    data: { url: WORKOUT_NOTIFICATION_URL },
+    icon: WORKOUT_NOTIFICATION_ICON,
+    requireInteraction: false,
+    renotify: true,
+    tag: "workout-rest-complete",
+  };
+
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.showNotification("休息结束", options);
+    vibrateRestComplete();
+    return;
+  } catch {
+    const notification = new Notification("休息结束", options);
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+    vibrateRestComplete();
+  }
 }
 
 function formatRestSeconds(value: number | null | undefined): string {
@@ -389,6 +497,8 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [restEndTime, setRestEndTime] = useState<string | null>(null);
   const [restSecondsLeft, setRestSecondsLeft] = useState(0);
+  const [notificationPermission, setNotificationPermission] = useState<RestNotificationPermission>("default");
+  const [notificationWorkerReady, setNotificationWorkerReady] = useState(false);
   const [finishOpen, setFinishOpen] = useState(false);
   const [finishForm, setFinishForm] = useState<FinishForm>(() =>
     initialSnapshot.currentSession
@@ -410,11 +520,23 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     buildComponentSetForms(initialSnapshot.currentSession),
   );
   const actionLockRef = useRef(false);
+  const notifiedRestEndRef = useRef<string | null>(null);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const permission = getNotificationPermission();
+    setNotificationPermission(permission);
+    if (permission !== "unsupported") {
+      void registerWorkoutServiceWorker().then((registration) => {
+        setNotificationWorkerReady(Boolean(registration));
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!restEndTime) {
       setRestSecondsLeft(0);
+      notifiedRestEndRef.current = null;
       return;
     }
 
@@ -426,6 +548,57 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
   }, [restEndTime]);
+
+  useEffect(() => {
+    if (!restEndTime || notificationPermission !== "granted") {
+      return;
+    }
+
+    const restEndMs = new Date(restEndTime).getTime();
+    if (!Number.isFinite(restEndMs) || restEndMs > Date.now()) {
+      return;
+    }
+    if (notifiedRestEndRef.current === restEndTime) {
+      return;
+    }
+
+    notifiedRestEndRef.current = restEndTime;
+    void showRestCompleteNotification(session).catch(() => undefined);
+  }, [notificationPermission, restEndTime, restSecondsLeft, session]);
+
+  async function enableRestNotifications() {
+    const currentPermission = getNotificationPermission();
+    if (currentPermission === "unsupported") {
+      setNotificationPermission("unsupported");
+      setFeedback({ tone: "error", text: "当前浏览器缺少系统通知能力。" });
+      return;
+    }
+
+    const registration = await registerWorkoutServiceWorker();
+    setNotificationWorkerReady(Boolean(registration));
+
+    const nextPermission = currentPermission === "default"
+      ? await Notification.requestPermission()
+      : currentPermission;
+    setNotificationPermission(nextPermission);
+
+    if (nextPermission === "granted") {
+      setFeedback({
+        tone: "success",
+        text: notificationWorkerReady || registration
+          ? "休息结束提醒已开启。iPhone 锁屏提醒需要从主屏幕打开本应用。"
+          : "休息结束提醒已开启。后台提醒能力由当前浏览器决定。",
+      });
+      return;
+    }
+
+    if (nextPermission === "denied") {
+      setFeedback({ tone: "error", text: "系统通知权限已关闭，请在浏览器或系统设置里允许 Workout。" });
+      return;
+    }
+
+    setFeedback({ tone: "info", text: "系统通知保持待授权状态，请在浏览器弹窗里选择允许。" });
+  }
 
   useEffect(() => {
     setComponentForms(buildComponentSetForms(session));
@@ -706,6 +879,17 @@ export default function TrainingClient({ initialSnapshot }: { initialSnapshot: T
           <h1>训练控制台</h1>
         </div>
         <div className="topbar-actions">
+          <button
+            type="button"
+            className={notificationPermission === "granted" ? "ghost-button notification-button enabled" : "ghost-button notification-button"}
+            onClick={enableRestNotifications}
+            disabled={notificationPermission === "unsupported"}
+            aria-pressed={notificationPermission === "granted"}
+            title={notificationButtonTitle(notificationPermission)}
+          >
+            {notificationPermission === "granted" ? <BellRing size={17} /> : <Bell size={17} />}
+            {notificationButtonLabel(notificationPermission)}
+          </button>
           <Link className="ghost-button" href={`/week?date=${initialSnapshot.date}`}>
             <CalendarDays size={17} />
             周视图

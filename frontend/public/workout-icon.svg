@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Workout">
+  <rect width="512" height="512" rx="112" fill="#07110e"/>
+  <path d="M121 276h52v-40h-52v40Zm218 0h52v-40h-52v40ZM184 318h144V194H184v124Zm-78-14H66V208h40v96Zm340 0h-40v-96h40v96Z" fill="#d8ff3d"/>
+  <path d="M184 318h144V194H184v124Z" fill="#f4edd8" opacity=".18"/>
+  <path d="M106 208h15v96h-15V208Zm285 0h15v96h-15V208Z" fill="#76d6ff"/>
+</svg>
